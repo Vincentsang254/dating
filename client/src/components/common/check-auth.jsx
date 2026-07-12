@@ -3,8 +3,8 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import { loadUser, logoutUser } from "@/features/slices/authSlice";
-import Loader from "./Loader";
+import { loadUser, logoutUser } from "@/redux/slices/authSlice";
+//import Loader from "./Loader";
 
 const CheckAuth = ({ children, requireAuth = false, requireAdmin = false }) => {
   const location = useLocation();
