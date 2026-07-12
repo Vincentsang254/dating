@@ -42,6 +42,10 @@ const DropdownMenuItem = ({ className, ...props }) => (
   />
 );
 
+const DropdownMenuLabel = ({ className, ...props }) => (
+  <div className={cn("px-2 py-1.5 text-sm font-semibold", className)} {...props} />
+);
+
 const DropdownMenuSeparator = ({ className, ...props }) => (
   <div className={cn("-mx-1 my-1 h-px bg-muted", className)} {...props} />
 );
@@ -51,5 +55,6 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
 };

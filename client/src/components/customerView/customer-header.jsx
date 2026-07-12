@@ -1,8 +1,8 @@
 /* eslint-disable react/prop-types */
 import { HousePlug, LogOut, Menu, UserCog, Settings } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sheet, SheetContent, SheetTrigger } from "../../ui/sheet";
-import { Button } from "../../ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,10 +10,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../../ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "../../ui/avatar";
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
-import { Label } from "../../ui/label";
+import { Label } from "@/components/ui/label";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "@/redux/slices/authSlice";
 
