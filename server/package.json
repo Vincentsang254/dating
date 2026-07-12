@@ -26,7 +26,6 @@
 		"cookie-parser": "^1.4.6",
     "moment": "^2.30.1",
     "cryptojs": "^2.5.3",
-		"dotenv": "^16.4.5",
-		
+		"dotenv": "^16.4.5"
   }
 }
