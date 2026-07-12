@@ -6,8 +6,7 @@ const cors = require("cors")
 
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
-
-const paymentRoutes = require ("./routes/paymentRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 dotenv.config();
 const app = express();
@@ -18,19 +17,28 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "https://monster-tipster.onrender.com", 
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true, 
-    allowedHeaders: ['Content-Type', 'Authorization'], 
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 const db = require("./models");
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ success: true, message: "Server is healthy.", data: null });
+});
+
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-
 app.use("/api/payment", paymentRoutes);
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ success: false, message: "Operation failed.", data: null });
+});
 
 
   if (process.env.NODE_ENV === "production") {

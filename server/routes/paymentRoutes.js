@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const paymentController = require("../controllers/paymentController");
-const verifyToken = require("../middleware/verifyToken");
-const verifyNowPaymentsWebhook = require("../middleware/verifyNowPaymentsWebhook");
+const { verifyToken } = require("../middlewares/authMiddleware");
+const verifyNowPaymentsWebhook = require("../middlewares/verifyNowPaymentsWebhook");
 
 /*
 |--------------------------------------------------------------------------

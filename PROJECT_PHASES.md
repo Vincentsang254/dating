@@ -30,7 +30,14 @@ Tasks
 
 Status
 
-🟡 In Progress
+� Partially completed
+
+Completed
+
+- Register
+- Login
+- Load user
+- Logout
 
 ---
 
