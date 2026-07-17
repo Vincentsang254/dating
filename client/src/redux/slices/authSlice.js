@@ -19,6 +19,7 @@ const initialState = {
   loginError: "",
   userLoaded: false,
 };
+
 export const registerUser = createAsyncThunk(
   "auth/registerUser",
   async (values, { rejectWithValue }) => {
@@ -30,17 +31,21 @@ export const registerUser = createAsyncThunk(
         password: values.password,
       });
 
+      const payload = response.data?.data || {};
+      if (payload.token) {
+        localStorage.setItem("token", payload.token);
+      }
+
       toast.success(response.data.message, {
         position: "top-center",
       });
 
-      // Return only the necessary information (e.g., user details)
-      return { userData: response.data.data, message: response.data.message };
+      return { userData: payload, message: response.data.message };
     } catch (error) {
-      toast.error(error.response.data.message, {
+      toast.error(error.response?.data?.message || "Registration failed", {
         position: "top-center",
       });
-      return rejectWithValue(error.response.data.message);
+      return rejectWithValue(error.response?.data?.message || "Registration failed");
     }
   }
 );
@@ -55,30 +60,31 @@ export const loginUser = createAsyncThunk(
         password: values.password,
       });
 
-      const token = response.data.token;
-      localStorage.setItem("token", token);
-      // localStorage.setItem("token", JSON.stringify(token));
+      const payload = response.data?.data || {};
+      if (payload.token) {
+        localStorage.setItem("token", payload.token);
+      }
 
       toast.success(response.data.message, {
         position: "top-center",
       });
-      return token;
+      return payload.token;
     } catch (error) {
-      toast.error(error.response.data.message, {
+      toast.error(error.response?.data?.message || "Login failed", {
         position: "top-center",
       });
-      return rejectWithValue(error.response.data.message);
+      return rejectWithValue(error.response?.data?.message || "Login failed");
     }
   }
 );
+
 export const refreshToken = createAsyncThunk(
   "auth/refreshToken",
   async (_, { rejectWithValue }) => {
     try {
-      const headers = await setHeaders()
+      const headers = setHeaders();
       const response = await axios.get(`${url}/auth/refresh-token`, headers);
-      console.log("response from refresh token",response.data.data);
-      return response.data.data; // latest user info
+      return response.data?.data;
     } catch (error) {
       toast.error(error.response?.data?.message || "Session expired", {
         position: "top-center",
@@ -88,39 +94,30 @@ export const refreshToken = createAsyncThunk(
   }
 );
 
-// For token expiry handling:
-const token = localStorage.getItem("token");
-if (token) {
-  const decodedToken = jwtDecode(token);
-  const isExpired = decodedToken.exp * 1000 < Date.now();
-  if (isExpired) {
-    localStorage.removeItem("token");
-    dispatch(logoutUser());
-  }
-}
-
-
 // Auth slice
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    loadUser(state, action) {
+    loadUser(state) {
       const token = state.token;
       if (token) {
-        const user = jwtDecode(token);
-        return {
-          ...state,
-          phoneNumber: user.phoneNumber,
-          email: user.email,
-          name: user.name,
-          id: user.id,
-          userType: user.userType,
-          userLoaded: true,
-        };
-      } else {
-        return { ...state, userLoaded: false };
+        try {
+          const user = jwtDecode(token);
+          return {
+            ...state,
+            phoneNumber: user.phoneNumber || "",
+            email: user.email || "",
+            name: user.name || "",
+            id: user.id || "",
+            userType: user.userType || null,
+            userLoaded: true,
+          };
+        } catch (error) {
+          return { ...state, userLoaded: false };
+        }
       }
+      return { ...state, userLoaded: false };
     },
     logoutUser(state) {
       localStorage.removeItem("token");
@@ -144,32 +141,31 @@ const authSlice = createSlice({
       .addCase(refreshToken.fulfilled, (state, action) => {
         return {
           ...state,
-          phoneNumber: action.payload.phoneNumber,
-          email: action.payload.email,
-          name: action.payload.name,
-          id: action.payload.id,
-          userType: action.payload.userType,
+          phoneNumber: action.payload?.phoneNumber || "",
+          email: action.payload?.email || "",
+          name: action.payload?.name || "",
+          id: action.payload?.id || "",
+          userType: action.payload?.userType || null,
           userLoaded: true,
         };
       })
 
       .addCase(registerUser.pending, (state) => {
-        return { ...state, registerStatus: "pending" };
+        return { ...state, registerStatus: "pending", registerError: "" };
       })
       .addCase(registerUser.fulfilled, (state, action) => {
-        const userData = action.payload.userData;
-        if (userData) {
+        const userData = action.payload?.userData;
+        if (userData?.user) {
           return {
             ...state,
-            phoneNumber: userData.phoneNumber,
-            email: userData.email,
-            name: userData.name,
-            id: userData.id,
-            userType: userData.userType || "client", // Default to "user" if not provided
-            profilePic: userData.profilePic,
-            verificationCode: userData.verificationCode,
-            verified: userData.verified,
+            token: userData.token || state.token,
+            phoneNumber: userData.user.phoneNumber || "",
+            email: userData.user.email || "",
+            name: userData.user.name || "",
+            id: userData.user.id || "",
+            userType: userData.user.userType || "customer",
             registerStatus: "success",
+            registerError: "",
           };
         }
         return state;
@@ -182,7 +178,7 @@ const authSlice = createSlice({
         };
       })
       .addCase(loginUser.pending, (state) => {
-        return { ...state, loginStatus: "pending" };
+        return { ...state, loginStatus: "pending", loginError: "" };
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         if (action.payload) {
@@ -190,12 +186,13 @@ const authSlice = createSlice({
           return {
             ...state,
             token: action.payload,
-            phoneNumber: user.phoneNumber,
-            name: user.name,
-            email: user.email,
-            id: user.id,
-            userType: user.userType,
+            phoneNumber: user.phoneNumber || "",
+            name: user.name || "",
+            email: user.email || "",
+            id: user.id || "",
+            userType: user.userType || "customer",
             loginStatus: "success",
+            loginError: "",
           };
         }
         return state;

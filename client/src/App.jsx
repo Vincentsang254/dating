@@ -1,55 +1,39 @@
 /* eslint-disable react/prop-types */
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import AuthLayout from "./components/auth/auth-layout.jsx";
 import AdminLayout from "./components/adminView/admin-layout.jsx";
 import UserLayout from "./components/customerView/customer-layout.jsx";
 import CheckAuth from "./components/common/check-auth";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-// Auth Pages
-//import AuthLogin from "./pages/auth/login";
-//import AuthRegister from "./pages/auth/register";
-//import ForgotPassword from "./pages/auth/forgot-password";
-//import VerifyAccount from "./pages/auth/verify-account";
-//import CheckEmail from "./pages/auth/check-email";
-//import ResetPassword from "./pages/auth/password-reset";
-
-// Admin Pages
-//import AdminDashboard from "./pages/admin-view/dashboard";
-//import AdminUsers from "./pages/admin-view/admin-users";
-
-// User Pages
-//import Home from "./pages/user-view/common/Home";
-//import Profile from "./pages/user-view/account/Profile";
-
-// Common Pages
-//import UnauthPage from "./pages/unauth-page";
-//import NotFound from "./pages/not-found/Notfound";
-//import AdminPaymentsHistory from "./pages/admin-view/admin-view-payments";
+import LoginPage from "./pages/auth/login.jsx";
+import RegisterPage from "./pages/auth/register.jsx";
+import ForgotPasswordPage from "./pages/auth/forgot-password.jsx";
+import VerifyAccountPage from "./pages/auth/verify-account.jsx";
+import CheckEmailPage from "./pages/auth/check-email.jsx";
+import ResetPasswordPage from "./pages/auth/password-reset.jsx";
+import AdminDashboardPage from "./pages/adminView/dashboard/dashboard.jsx";
+import CustomerDashboardPage from "./pages/customerView/dashboard/home.jsx";
 import { loadUser, refreshToken } from "./redux/slices/authSlice";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-const App = ({ isAuthenticated, user }) => {
 
+const App = () => {
   const dispatch = useDispatch();
   const { token } = useSelector((state) => state.auth);
-
-  console.log("token: ", token)
 
   useEffect(() => {
     if (token) {
       dispatch(refreshToken());
     }
   }, [token, dispatch]);
- 
 
-  // Load user on app initialization
   useEffect(() => {
     dispatch(loadUser());
   }, [dispatch]);
+
   return (
-    <div className="flex flex-col min-h-screen overflow-hidden bg-white">
+    <div className="flex min-h-screen flex-col overflow-hidden bg-white">
       <ToastContainer
         position="top-right"
         autoClose={5000}
@@ -63,75 +47,27 @@ const App = ({ isAuthenticated, user }) => {
       />
 
       <Routes>
-        <Route
-          path="/"
-          element={
-            <CheckAuth isAuthenticated={isAuthenticated} user={user}>
-              {/* Home or landing page can go here */}
-            </CheckAuth>
-          }
-        />
+        <Route path="/" element={<CheckAuth><Navigate to="/auth/login" replace /></CheckAuth>} />
 
-        <Route
-          path="/auth"
-          element={
-            <CheckAuth isAuthenticated={isAuthenticated} user={user}>
-              <AuthLayout />
-            </CheckAuth>
-          }
-        >
-         // <Route path="login" element={<AuthLogin />} />
-          //<Route path="register" element={<AuthRegister />} />
-          //<Route path="verify-otp" element={<VerifyAccount />} />
-          //<Route path="forgot-password" element={<ForgotPassword />} />
-          //<Route path="check-email" element={<CheckEmail />} />
+        <Route path="/auth" element={<CheckAuth><AuthLayout /></CheckAuth>}>
+          <Route index element={<Navigate to="login" replace />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
+          <Route path="verify-otp" element={<VerifyAccountPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="check-email" element={<CheckEmailPage />} />
+          <Route path="reset-password/:token" element={<ResetPasswordPage />} />
         </Route>
 
-        //<Route path="/auth/reset-password/:token" element={<ResetPassword />} />
-
-        {/* Admin Dashboard Routes */}
-        <Route
-          path="/admin"
-          element={
-            <CheckAuth
-              isAuthenticated={isAuthenticated}
-              user={user}
-              requireAuth
-              requireAdmin
-            >
-              <AdminLayout />
-            </CheckAuth>
-          }
-        >
-         // <Route index element={<AdminDashboard />} />
-         // <Route path="dashboard" element={<AdminDashboard />} />
-         // <Route path="users" element={<AdminUsers />} />
-          
-         // <Route path="payments" element={<AdminPaymentsHistory />} />
+        <Route path="/admin" element={<CheckAuth requireAuth requireAdmin><AdminLayout /></CheckAuth>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
         </Route>
 
-        {/* User Dashboard Routes */}
-        <Route
-          path="/user"
-          element={
-            <CheckAuth
-              isAuthenticated={isAuthenticated}
-              user={user}
-              requireAuth
-            >
-              <UserLayout />
-            </CheckAuth>
-          }
-        >
-        //  <Route index element={<Home />} />
-         // <Route path="dashboard" element={<Home />} />
-         // <Route path="profile" element={<Profile />} />
-          
+        <Route path="/user" element={<CheckAuth requireAuth><UserLayout /></CheckAuth>}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<CustomerDashboardPage />} />
         </Route>
-
-        {/* Common pages */}
-       // <Route path="/unauth-page" element={<UnauthPage />} />
-       // <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
   );
