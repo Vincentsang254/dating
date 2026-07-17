@@ -18,9 +18,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "@/redux/slices/authSlice";
 
 const menuItems = [
-  { id: "home", label: "Home", path: "/user/dashboard" },
+  { id: "home", label: "Discover", path: "/user/dashboard" },
   { id: "profile", label: "Profile", path: "/user/profile" },
-  { id: "premium", label: "Premium Tips", path: "/user/vip" },
+  { id: "premium", label: "Premium", path: "/user/vip" },
 ];
 
 function MenuItems({ close }) {
@@ -129,7 +129,7 @@ function UserHeader() {
                   >
                     <HousePlug className="w-5 h-5 text-primary" />
                     <span className="text-sm font-semibold">
-                      Monster Tipsters
+                      SparkMatch
                     </span>
                   </Link>
                   <MenuItems close={() => setOpenMenu(false)} />
@@ -144,7 +144,7 @@ function UserHeader() {
           <Link to="/user/dashboard" className="flex items-center gap-2">
             <HousePlug className="w-5 h-5 text-primary" />
             <span className="hidden sm:inline text-sm font-semibold">
-              Monster Tipsters
+              SparkMatch
             </span>
           </Link>
         </div>
