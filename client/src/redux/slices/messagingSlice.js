@@ -335,6 +335,18 @@ const messagingSlice = createSlice({
   },
 });
 
-export const { clearError, addMessage, updateConversationLastMessage } = messagingSlice.actions;
+export const { 
+  clearError, 
+  addMessage, 
+  updateConversationLastMessage,
+  setIncomingCall,
+  clearIncomingCall,
+  setActiveCall,
+  clearActiveCall,
+  updateOnlineUsers,
+  setUserFeatures,
+  addTypingUser,
+  removeTypingUser,
+} = messagingSlice.actions;
 
 export default messagingSlice.reducer;
