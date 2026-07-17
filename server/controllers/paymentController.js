@@ -47,8 +47,9 @@ const getNowPaymentStatus = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Operation failed.",
+      message: "Failed to retrieve payment.",
       data: null,
+      error: error.message,
     });
   }
 };
@@ -75,8 +76,9 @@ const verifyNowPayment = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Operation failed.",
+      message: "Failed to verify payment.",
       data: null,
+      error: error.message,
     });
   }
 };

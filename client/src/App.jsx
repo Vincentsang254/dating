@@ -14,6 +14,7 @@ import CheckEmailPage from "./pages/auth/check-email.jsx";
 import ResetPasswordPage from "./pages/auth/password-reset.jsx";
 import AdminDashboardPage from "./pages/adminView/dashboard/dashboard.jsx";
 import CustomerDashboardPage from "./pages/customerView/dashboard/home.jsx";
+import ProfilePage from "./pages/customerView/profile/profile.jsx";
 import { loadUser, refreshToken } from "./redux/slices/authSlice";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -67,6 +68,7 @@ const App = () => {
         <Route path="/user" element={<CheckAuth requireAuth><UserLayout /></CheckAuth>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<CustomerDashboardPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </div>

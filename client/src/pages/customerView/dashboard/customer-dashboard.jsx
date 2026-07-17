@@ -14,6 +14,9 @@ const CustomerDashboard = () => {
 		<div className="p-6">
 			<h1 className="text-2xl font-semibold">Customer Dashboard</h1>
 			<p className="mt-4">Welcome {profile?.name || "user"}.</p>
+			<div className="mt-6">
+				<a href="/user/profile" className="text-primary underline">Edit Profile</a>
+			</div>
 		</div>
 	);
 };

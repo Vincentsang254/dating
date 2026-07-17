@@ -30,7 +30,7 @@ Tasks
 
 Status
 
-🟡 In Progress
+✅ Completed
 
 Completed
 
@@ -38,6 +38,9 @@ Completed
 - Login
 - Load user
 - Logout
+- Forgot Password
+- Reset Password
+- Email Verification
 
 ---
 
@@ -55,7 +58,15 @@ Tasks
 
 Status
 
-🔴 Pending
+✅ Completed
+
+Completed
+
+- Create Profile
+- Upload Photos
+- Interests
+- Bio
+- Preferences
 
 ---
 

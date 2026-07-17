@@ -38,6 +38,35 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      bio: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      interests: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      preferences: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      photos: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: "Comma-separated image URLs",
+      },
+      gender: {
+        type: DataTypes.ENUM("male", "female", "other"),
+        allowNull: true,
+      },
+      age: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      location: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+      },
       verified: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
