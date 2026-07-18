@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 import { HousePlug, LogOut, Menu, UserCog, Settings } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,8 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useState } from "react";
-import { Label } from "@/components/ui/label";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "@/redux/slices/authSlice";
 
@@ -104,42 +101,20 @@ function HeaderRight() {
   );
 }
 
-function UserHeader() {
-  const [openMenu, setOpenMenu] = useState(false);
-
+function UserHeader({ setOpen = null }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
       <div className="container flex items-center justify-between h-14 px-4">
         {/* Left Section - Mobile Menu & Logo */}
         <div className="flex items-center gap-3">
-          <Sheet open={openMenu} onOpenChange={setOpenMenu}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <Menu className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-
-            <SheetContent side="left" className="w-[240px]">
-              <div className="flex flex-col h-full justify-between">
-                <div>
-                  <Link
-                    to="/user/dashboard"
-                    onClick={() => setOpenMenu(false)}
-                    className="flex items-center gap-2 mb-6"
-                  >
-                    <HousePlug className="w-5 h-5 text-primary" />
-                    <span className="text-sm font-semibold">
-                      SparkMatch
-                    </span>
-                  </Link>
-                  <MenuItems close={() => setOpenMenu(false)} />
-                </div>
-                <div className="pb-3 border-t mt-6 pt-3">
-                  <HeaderRight />
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setOpen?.(true)}
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
 
           <Link to="/user/dashboard" className="flex items-center gap-2">
             <HousePlug className="w-5 h-5 text-primary" />
@@ -151,7 +126,7 @@ function UserHeader() {
 
         {/* Center - Desktop Menu */}
         <div className="hidden lg:flex items-center justify-center flex-1">
-          <MenuItems close={() => setOpenMenu(false)} />
+          <MenuItems close={() => {}} />
         </div>
 
         {/* Right - Profile */}
