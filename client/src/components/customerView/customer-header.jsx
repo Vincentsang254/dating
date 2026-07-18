@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { HousePlug, Menu } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
