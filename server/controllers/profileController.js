@@ -1,13 +1,13 @@
 const { Users } = require("../models");
-const cloudinary = require("cloudinary");
+const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
 const sharp = require("sharp");
 
-// Configure Cloudinary directly for this project.
-cloudinary.v2.config({
-  cloud_name: "vincentsang",
-  api_key: "455286944547629",
-  api_secret: "764okYVYwP9WOp5iXMKS7Oxbr7c",
+// Configure Cloudinary using environment variables with safe fallback values.
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "vincentsang",
+  api_key: process.env.CLOUDINARY_API_KEY || "455286944547629",
+  api_secret: process.env.CLOUDINARY_API_SECRET || "764okYVYwP9WOp5iXMKS7Oxbr7c",
 });
 
 const getProfile = async (req, res) => {
@@ -42,10 +42,6 @@ const updateProfile = async (req, res) => {
 const uploadProfilePhoto = async (req, res) => {
   try {
     // Expecting either `image` (base64 or file path) or a multipart file named image
-    if (!process.env.CLOUDINARY_CLOUD_NAME) {
-      return res.status(400).json({ success: false, message: "Cloudinary not configured.", data: null });
-    }
-
     const fileData = req.body.image || (req.file && req.file.path);
     if (!fileData) {
       return res.status(400).json({ success: false, message: "No image provided.", data: null });
@@ -68,7 +64,7 @@ const uploadProfilePhoto = async (req, res) => {
       uploadPath = resizedPath;
     }
 
-    const result = await cloudinary.v2.uploader.upload(uploadPath, { folder: "profiles" });
+    const result = await cloudinary.uploader.upload(uploadPath, { folder: "profiles" });
 
     // update user profilePic
     const user = await Users.findByPk(req.user.id);
