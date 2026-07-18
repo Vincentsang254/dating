@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { discoverUsers, likeUser, unlikeUser } from "@/redux/slices/matchingSlice";
-import { Heart, X, AlertCircle } from "lucide-react";
+import { Heart, X, AlertCircle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const DiscoverPage = () => {
   const dispatch = useDispatch();
@@ -171,26 +172,34 @@ const DiscoverPage = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button
-                onClick={handlePass}
-                disabled={loading}
-                variant="outline"
-                size="lg"
-                className="flex-1 flex items-center justify-center gap-2"
-              >
-                <X className="w-5 h-5" />
-                Pass
-              </Button>
-              <Button
-                onClick={handleLike}
-                disabled={loading}
-                size="lg"
-                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700"
-              >
-                <Heart className="w-5 h-5" />
-                Like
-              </Button>
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-4">
+                <Button
+                  onClick={handlePass}
+                  disabled={loading}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  <X className="w-5 h-5" />
+                  Pass
+                </Button>
+                <Button
+                  onClick={handleLike}
+                  disabled={loading}
+                  size="lg"
+                  className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700"
+                >
+                  <Heart className="w-5 h-5" />
+                  Like
+                </Button>
+              </div>
+              <Link to={`/user/profile/${currentUser?.id}`}>
+                <Button variant="outline" size="lg" className="w-full flex items-center justify-center gap-2">
+                  <Eye className="w-5 h-5" />
+                  View Full Profile
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

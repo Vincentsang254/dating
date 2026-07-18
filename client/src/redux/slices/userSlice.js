@@ -5,7 +5,9 @@ import { toast } from "react-toastify";
 
 const initialState = {
   profile: null,
+  viewedProfile: null,
   status: "idle",
+  viewedProfileStatus: "idle",
   error: null,
 };
 
@@ -16,6 +18,17 @@ export const fetchProfile = createAsyncThunk("user/fetchProfile", async (_, { re
     return response.data;
   } catch (error) {
     toast.error(error.response?.data?.message || "Failed to load profile", { position: "top-center" });
+    return rejectWithValue(error.response?.data || { message: error.message });
+  }
+});
+
+export const fetchUserProfile = createAsyncThunk("user/fetchUserProfile", async (userId, { rejectWithValue }) => {
+  try {
+    const headers = setHeaders();
+    const response = await axios.get(`${url}/users/profile/${userId}`, headers);
+    return response.data;
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to load user profile", { position: "top-center" });
     return rejectWithValue(error.response?.data || { message: error.message });
   }
 });
@@ -94,6 +107,19 @@ const userSlice = createSlice({
       })
       .addCase(fetchProfile.rejected, (state, action) => {
         state.status = "rejected";
+        state.error = action.payload?.message || action.error?.message;
+      });
+    builder
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.viewedProfileStatus = "pending";
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.viewedProfileStatus = "success";
+        state.viewedProfile = action.payload.data || null;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.viewedProfileStatus = "rejected";
         state.error = action.payload?.message || action.error?.message;
       });
     builder

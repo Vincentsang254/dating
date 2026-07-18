@@ -140,14 +140,21 @@ const MatchesPage = () => {
                     </p>
                   )}
 
-                  {/* Action Button */}
-                  <Button
-                    className="w-full mt-4 flex items-center justify-center gap-2"
-                    onClick={() => handleStartChat(otherUser?.id)}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Send Message
-                  </Button>
+                  {/* Action Buttons */}
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button
+                      className="w-full flex items-center justify-center gap-2"
+                      onClick={() => handleStartChat(otherUser?.id)}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Send Message
+                    </Button>
+                    <Link to={`/user/profile/${otherUser?.id}`}>
+                      <Button variant="outline" className="w-full flex items-center justify-center gap-2">
+                        View Profile
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             );

@@ -9,6 +9,7 @@ router.get("/me", verifyToken, loadUser);
 
 // Profile endpoints
 router.get("/profile", verifyToken, profileController.getProfile);
+router.get("/profile/:userId", verifyToken, profileController.getUserProfile);
 router.put("/profile", verifyToken, profileController.updateProfile);
 router.post("/profile/upload", verifyToken, upload.single("image"), profileController.uploadProfilePhoto);
 router.delete("/profile/photo", verifyToken, profileController.deletePhoto);

@@ -25,6 +25,7 @@ import LikesPage from "./pages/customerView/likes/likes.jsx";
 import ConversationsPage from "./pages/customerView/messages/conversations.jsx";
 import ChatPage from "./pages/customerView/messages/chat.jsx";
 import PremiumPage from "./pages/customerView/payments/premium.jsx";
+import ViewProfilePage from "./pages/customerView/profile/view-profile.jsx";
 import { loadUser, refreshToken } from "./redux/slices/authSlice";
 import { url as API_URL } from "./redux/slices/api";
 import { useEffect } from "react";
@@ -109,6 +110,7 @@ const App = () => {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<CustomerDashboardPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile/:userId" element={<ViewProfilePage />} />
           <Route path="discover" element={<DiscoverPage />} />
           <Route path="matches" element={<MatchesPage />} />
           <Route path="likes" element={<LikesPage />} />
