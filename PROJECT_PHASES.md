@@ -134,7 +134,16 @@ Premium
 
 Status
 
-Pending
+✅ Completed
+
+Completed
+
+- NOWPayments payment route and webhook integration
+- Subscription plan listing endpoint and seeded plan data
+- User subscription status lookup
+- Subscription activation and cancellation flow
+- Premium UI page and Redux integration for plan selection and status
+- Auth-gated premium access on customer routes
 
 ---
 

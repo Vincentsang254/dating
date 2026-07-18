@@ -10,12 +10,16 @@ const ConversationsPage = () => {
   const { conversations, conversationsLoading, conversationsError, unreadCount } = useSelector(
     (state) => state.messaging
   );
-  const { id: userId } = useSelector((state) => state.auth);
+  const { id: userId, token, userLoaded } = useSelector((state) => state.auth);
 
   useEffect(() => {
+    if (!token || !userLoaded) {
+      return;
+    }
+
     dispatch(getConversations({ limit: 20, offset: 0 }));
     dispatch(getUnreadCount());
-  }, [dispatch]);
+  }, [dispatch, token, userLoaded]);
 
   if (conversationsLoading) {
     return (

@@ -4,61 +4,70 @@ import socketService from "@/services/socketService";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
+const authHeader = (token) => ({
+  headers: {
+    Authorization: `Bearer ${token || ""}`,
+  },
+});
+
 // Async Thunks
 export const getConversations = createAsyncThunk(
   "messaging/getConversations",
-  async ({ limit = 10, offset = 0 }, { rejectWithValue }) => {
+  async ({ limit = 10, offset = 0 }, { rejectWithValue, getState }) => {
     try {
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
       const response = await axios.get(
         `${API_URL}/messaging/conversations?limit=${limit}&offset=${offset}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-        }
+        authHeader(token)
       );
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to fetch conversations");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to fetch conversations");
     }
   }
 );
 
 export const getOrCreateConversation = createAsyncThunk(
   "messaging/getOrCreateConversation",
-  async (userId, { rejectWithValue }) => {
+  async (userId, { rejectWithValue, getState }) => {
     try {
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
       const response = await axios.post(
         `${API_URL}/messaging/conversations`,
         { userId },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-        }
+        authHeader(token)
       );
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to create conversation");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to create conversation");
     }
   }
 );
 
 export const getMessages = createAsyncThunk(
   "messaging/getMessages",
-  async ({ conversationId, limit = 50, offset = 0 }, { rejectWithValue }) => {
+  async ({ conversationId, limit = 50, offset = 0 }, { rejectWithValue, getState }) => {
     try {
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
       const response = await axios.get(
         `${API_URL}/messaging/conversations/${conversationId}/messages?limit=${limit}&offset=${offset}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-        }
+        authHeader(token)
       );
       return { conversationId, messages: response.data.data };
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to fetch messages");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to fetch messages");
     }
   }
 );
@@ -67,14 +76,15 @@ export const sendMessage = createAsyncThunk(
   "messaging/sendMessage",
   async ({ conversationId, content }, { rejectWithValue, getState }) => {
     try {
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
       const response = await axios.post(
         `${API_URL}/messaging/messages`,
         { conversationId, content },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-        }
+        authHeader(token)
       );
       
       // Emit via Socket.IO for real-time updates
@@ -91,59 +101,62 @@ export const sendMessage = createAsyncThunk(
 
       return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to send message");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to send message");
     }
   }
 );
 
 export const markAsRead = createAsyncThunk(
   "messaging/markAsRead",
-  async (conversationId, { rejectWithValue }) => {
+  async (conversationId, { rejectWithValue, getState }) => {
     try {
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
       await axios.post(
         `${API_URL}/messaging/mark-read`,
         { conversationId },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-          },
-        }
+        authHeader(token)
       );
       return conversationId;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to mark as read");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to mark as read");
     }
   }
 );
 
 export const getUnreadCount = createAsyncThunk(
   "messaging/getUnreadCount",
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const response = await axios.get(`${API_URL}/messaging/unread-count`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-        },
-      });
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
+      const response = await axios.get(`${API_URL}/messaging/unread-count`, authHeader(token));
       return response.data.data.unreadCount;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to fetch unread count");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to fetch unread count");
     }
   }
 );
 
 export const deleteConversation = createAsyncThunk(
   "messaging/deleteConversation",
-  async (conversationId, { rejectWithValue }) => {
+  async (conversationId, { rejectWithValue, getState }) => {
     try {
-      await axios.delete(`${API_URL}/messaging/conversations/${conversationId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-        },
-      });
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue("Please log in again.");
+      }
+
+      await axios.delete(`${API_URL}/messaging/conversations/${conversationId}`, authHeader(token));
       return conversationId;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.error || "Failed to delete conversation");
+      return rejectWithValue(error.response?.data?.error || error.response?.data?.message || "Failed to delete conversation");
     }
   }
 );
