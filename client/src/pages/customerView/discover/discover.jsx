@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { discoverUsers, likeUser, unlikeUser } from "@/redux/slices/matchingSlice";
-import { Heart, X, AlertCircle, Eye } from "lucide-react";
+import { Heart, X, AlertCircle, Eye, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -13,11 +13,21 @@ const DiscoverPage = () => {
     discoverLoading,
     discoverError,
     loading,
+    discoverOffset,
+    hasMoreDiscoverUsers,
   } = useSelector((state) => state.matching);
 
   useEffect(() => {
     dispatch(discoverUsers({ limit: 20, offset: 0 }));
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!users.length || !hasMoreDiscoverUsers || currentDiscoverIndex < users.length - 3) {
+      return;
+    }
+
+    dispatch(discoverUsers({ limit: 20, offset: discoverOffset }));
+  }, [currentDiscoverIndex, discoverOffset, hasMoreDiscoverUsers, users.length, dispatch]);
 
   const currentUser = users[currentDiscoverIndex];
 
@@ -83,19 +93,20 @@ const DiscoverPage = () => {
     );
   }
 
-  if (currentDiscoverIndex >= users.length) {
+  if (currentDiscoverIndex >= users.length && !hasMoreDiscoverUsers) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-lg border border-gray-200 max-w-md w-full p-8 text-center">
           <div className="w-16 h-16 bg-gradient-to-r from-pink-100 to-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Heart className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">All Done for Now!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">You’ve seen the available profiles</h2>
           <p className="text-gray-600 mb-6">
-            You've gone through all available profiles. Check back later!
+            There are no more new profiles right now. Try again later or refresh to start over.
           </p>
-          <Button onClick={() => dispatch(discoverUsers({ limit: 20, offset: 0 }))}>
-            Start Over
+          <Button onClick={() => dispatch(discoverUsers({ limit: 20, offset: 0 }))} className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Refresh
           </Button>
         </div>
       </div>
@@ -109,7 +120,7 @@ const DiscoverPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Discover</h1>
           <p className="text-gray-600">
-            Profile {currentDiscoverIndex + 1} of {users.length}
+            Profile {Math.min(currentDiscoverIndex + 1, users.length)} of {users.length}
           </p>
         </div>
 

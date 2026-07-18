@@ -133,6 +133,8 @@ const initialState = {
   currentDiscoverIndex: 0,
   discoverLoading: false,
   discoverError: null,
+  discoverOffset: 0,
+  hasMoreDiscoverUsers: true,
 
   // Likes
   userLikes: [],
@@ -170,6 +172,9 @@ const matchingSlice = createSlice({
     },
     resetDiscoverIndex: (state) => {
       state.currentDiscoverIndex = 0;
+      state.discoverOffset = 0;
+      state.discoverUsers = [];
+      state.hasMoreDiscoverUsers = true;
     },
   },
   extraReducers: (builder) => {
@@ -181,8 +186,15 @@ const matchingSlice = createSlice({
       })
       .addCase(discoverUsers.fulfilled, (state, action) => {
         state.discoverLoading = false;
-        state.discoverUsers = action.payload;
-        state.currentDiscoverIndex = 0;
+        const nextUsers = action.payload || [];
+        if (state.discoverOffset === 0) {
+          state.discoverUsers = nextUsers;
+          state.currentDiscoverIndex = 0;
+        } else if (nextUsers.length > 0) {
+          state.discoverUsers = [...state.discoverUsers, ...nextUsers];
+        }
+        state.discoverOffset += nextUsers.length;
+        state.hasMoreDiscoverUsers = nextUsers.length > 0;
       })
       .addCase(discoverUsers.rejected, (state, action) => {
         state.discoverLoading = false;
@@ -197,11 +209,9 @@ const matchingSlice = createSlice({
       })
       .addCase(likeUser.fulfilled, (state, action) => {
         state.loading = false;
-        // If it's a match, add to matches
         if (action.payload.isMatch) {
           state.matches.push(action.payload.like);
         }
-        // Move to next user in discover
         state.currentDiscoverIndex += 1;
       })
       .addCase(likeUser.rejected, (state, action) => {
@@ -217,11 +227,9 @@ const matchingSlice = createSlice({
       })
       .addCase(unlikeUser.fulfilled, (state, action) => {
         state.loading = false;
-        // Remove from userLikes if present
         state.userLikes = state.userLikes.filter(
           (like) => like.likedUserId !== action.payload.likedUserId
         );
-        // Move to next user in discover
         state.currentDiscoverIndex += 1;
       })
       .addCase(unlikeUser.rejected, (state, action) => {
