@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const { Payments, Subscriptions, SubscriptionPlans } = require("../models");
+const { createNowPayment: createNowPaymentRequest, getNowPaymentStatus: getNowPaymentStatusRequest } = require("../services/nowpayment");
 
 const ensureDefaultPlans = async () => {
   const existingPlans = await SubscriptionPlans.findAll({ attributes: ["tier"] });
@@ -77,18 +78,50 @@ const ensureDefaultPlans = async () => {
 
 const createNowPayment = async (req, res) => {
   try {
+    const amount = Number(req.body.amount || 0);
+    const planTier = req.body.planTier || "premium";
+    const billingCycle = req.body.billingCycle || "monthly";
+    const currency = req.body.currency || "USD";
+    const reference = req.body.reference || `payment-${Date.now()}`;
+    const userId = req.user?.id;
+
     const payment = await Payments.create({
-      reference: `payment-${Date.now()}`,
+      reference,
       provider: "NOWPayments",
-      amount: req.body.amount || 0,
-      userId: req.user?.id,
+      amount,
+      userId,
       status: "pending",
+    });
+
+    const gatewayResult = await createNowPaymentRequest({
+      amount,
+      currency,
+      orderId: payment.id,
+      orderDescription: `${planTier} subscription (${billingCycle})`,
+      planTier,
+      billingCycle,
+    });
+
+    await payment.update({
+      paymentId: gatewayResult.paymentId || payment.id,
+      priceCurrency: gatewayResult.price_currency || currency,
+      payCurrency: gatewayResult.pay_currency || currency,
+      payAmount: gatewayResult.pay_amount || amount,
+      paymentUrl: gatewayResult.paymentUrl || null,
+      payAddress: gatewayResult.pay_address || null,
+      network: gatewayResult.network || null,
+      status: gatewayResult.status || "pending",
     });
 
     return res.status(201).json({
       success: true,
-      message: "Payment Created Successfully",
-      data: payment,
+      message: gatewayResult.message || "Payment Created Successfully",
+      data: {
+        ...payment.toJSON(),
+        checkoutUrl: gatewayResult.paymentUrl || null,
+        paymentUrl: gatewayResult.paymentUrl || null,
+        fallback: gatewayResult.fallback || false,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -114,10 +147,18 @@ const getNowPaymentStatus = async (req, res) => {
       });
     }
 
+    const gatewayStatus = await getNowPaymentStatusRequest(payment.paymentId || payment.id);
+    if (gatewayStatus?.status) {
+      await payment.update({ status: gatewayStatus.status });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Payment Retrieved Successfully",
-      data: payment,
+      data: {
+        ...payment.toJSON(),
+        gatewayStatus,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -143,10 +184,18 @@ const verifyNowPayment = async (req, res) => {
       });
     }
 
+    const gatewayStatus = await getNowPaymentStatusRequest(payment.paymentId || payment.id);
+    if (gatewayStatus?.status) {
+      await payment.update({ status: gatewayStatus.status });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Payment Verified",
-      data: payment,
+      data: {
+        ...payment.toJSON(),
+        gatewayStatus,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -159,11 +208,36 @@ const verifyNowPayment = async (req, res) => {
 };
 
 const nowPaymentsWebhook = async (req, res) => {
-  return res.status(200).json({
-    success: true,
-    message: "Webhook received",
-    data: null,
-  });
+  try {
+    const payload = req.body || {};
+    const paymentId = payload.payment_id || payload.paymentId || payload.id;
+    const orderId = payload.order_id || payload.orderId;
+    const status = payload.payment_status || payload.status;
+
+    if (!paymentId && !orderId) {
+      return res.status(200).json({ success: true, message: "Webhook ignored", data: null });
+    }
+
+    const payment = await Payments.findOne({
+      where: orderId ? { id: Number(orderId) } : { paymentId: String(paymentId) },
+    });
+
+    if (payment) {
+      await payment.update({
+        paymentId: String(paymentId || payment.paymentId || payment.id),
+        status: status || payment.status,
+        paidAt: status && ["confirmed", "finished"].includes(status) ? new Date() : payment.paidAt,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Webhook received",
+      data: { paymentId, orderId, status },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Webhook failed", data: null, error: error.message });
+  }
 };
 
 const listSubscriptionPlans = async (req, res) => {

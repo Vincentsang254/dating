@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Check, Crown, Shield, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   activateSubscription,
   cancelSubscription,
+  createNowPayment,
   getUserSubscription,
   listSubscriptionPlans,
 } from "@/redux/slices/paymentSlice";
@@ -30,10 +31,32 @@ const PremiumPage = () => {
   const dispatch = useDispatch();
   const { list, current, status, error } = useSelector((state) => state.payment);
   const { name } = useSelector((state) => state.auth);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   useEffect(() => {
     dispatch(listSubscriptionPlans());
     dispatch(getUserSubscription());
+  }, [dispatch]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const paymentState = searchParams.get("payment");
+    const orderId = searchParams.get("order_id");
+    const planFromQuery = searchParams.get("plan") || "premium";
+
+    if (paymentState === "success" && orderId) {
+      dispatch(
+        activateSubscription({
+          planTier: planFromQuery,
+          billingCycle: "monthly",
+          paymentId: Number(orderId),
+        })
+      ).then((result) => {
+        if (activateSubscription.fulfilled.match(result)) {
+          dispatch(getUserSubscription());
+        }
+      });
+    }
   }, [dispatch]);
 
   const activeTier = current?.plan?.tier || current?.tier || "free";
@@ -48,6 +71,32 @@ const PremiumPage = () => {
 
     if (activateSubscription.fulfilled.match(result)) {
       dispatch(getUserSubscription());
+    }
+  };
+
+  const handleCheckout = async (plan) => {
+    setCheckoutLoading(true);
+    try {
+      const result = await dispatch(
+        createNowPayment({
+          amount: plan.price,
+          planTier: plan.tier,
+          billingCycle: plan.billingCycle || "monthly",
+          currency: "USD",
+        })
+      );
+
+      if (createNowPayment.fulfilled.match(result)) {
+        const checkoutUrl = result.payload?.data?.checkoutUrl || result.payload?.data?.paymentUrl;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
+
+      await handleActivate(plan.tier);
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -128,10 +177,10 @@ const PremiumPage = () => {
                   ) : (
                     <Button
                       className="w-full"
-                      onClick={() => handleActivate(plan.tier)}
-                      disabled={status === "pending"}
+                      onClick={() => (isPremiumPlan ? handleCheckout(plan) : handleActivate(plan.tier))}
+                      disabled={status === "pending" || checkoutLoading}
                     >
-                      {isPremiumPlan ? `Upgrade to ${plan.name}` : "Start with Free"}
+                      {isPremiumPlan ? (checkoutLoading ? "Preparing checkout..." : `Pay with NOWPayments`) : "Start with Free"}
                     </Button>
                   )}
 
