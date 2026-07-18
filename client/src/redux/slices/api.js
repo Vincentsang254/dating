@@ -1,14 +1,11 @@
-export const url = "/api";
+export const url = import.meta.env.VITE_API_URL || "https://dating-rpig.onrender.com/api";
 
 export const setHeaders = () => {
-
-
   const headers = {
     headers: {
       "x-auth-token": localStorage.getItem("token"),
     },
   };
 
-  // console.log("headers from frontend... ",headers.headers["x-auth-token"]);
   return headers;
 };

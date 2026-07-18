@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+import { url as API_URL } from "./api";
 
 // Async Thunks
 export const discoverUsers = createAsyncThunk(

@@ -26,6 +26,7 @@ import ConversationsPage from "./pages/customerView/messages/conversations.jsx";
 import ChatPage from "./pages/customerView/messages/chat.jsx";
 import PremiumPage from "./pages/customerView/payments/premium.jsx";
 import { loadUser, refreshToken } from "./redux/slices/authSlice";
+import { url as API_URL } from "./redux/slices/api";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import socketService from "@/services/socketService";
@@ -35,7 +36,6 @@ import axios from "axios";
 const App = () => {
   const dispatch = useDispatch();
   const { token, id: userId } = useSelector((state) => state.auth);
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
   useEffect(() => {
     if (token) {
