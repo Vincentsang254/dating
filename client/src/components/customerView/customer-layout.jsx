@@ -35,7 +35,7 @@ function UserLayout() {
 
       {/* Fixed Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
-        <UserHeader />
+        <UserHeader setOpen={setOpenSidebar} />
       </header>
 
       {/* Main Content with Sidebar */}
