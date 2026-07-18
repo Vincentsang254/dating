@@ -42,67 +42,10 @@ function MenuItems({ close }) {
   );
 }
 
-function HeaderRight() {
+function UserHeader({ setOpen = null }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { name, userType } = useSelector((state) => state.auth);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative w-8 h-8 rounded-full">
-          <Avatar className="w-8 h-8">
-            <AvatarFallback className="text-xs font-bold text-white bg-gradient-to-r from-blue-500 to-purple-500">
-              {name?.[0]?.toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent className="w-48" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal pb-1">
-          <div className="flex flex-col space-y-0.5">
-            <p className="text-xs font-medium text-gray-800">{name}</p>
-            <p className="text-[11px] text-gray-500">
-              {userType === "admin"
-                ? "Administrator"
-                : userType === "vip"
-                ? "VIP User"
-                : "Customer"}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => navigate("/user/profile")}
-          className="text-sm py-1.5"
-        >
-          <UserCog className="w-3.5 h-3.5 mr-2" /> Profile
-        </DropdownMenuItem>
-
-        {userType === "admin" && (
-          <DropdownMenuItem
-            onClick={() => navigate("/admin/dashboard")}
-            className="text-sm py-1.5"
-          >
-            <Settings className="w-3.5 h-3.5 mr-2" /> Admin
-          </DropdownMenuItem>
-        )}
-
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => dispatch(logoutUser())}
-          className="text-sm py-1.5 text-red-600 hover:text-red-700"
-        >
-          <LogOut className="w-3.5 h-3.5 mr-2" /> Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function UserHeader({ setOpen = null }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
       <div className="container flex items-center justify-between h-14 px-4">
@@ -131,7 +74,57 @@ function UserHeader({ setOpen = null }) {
         </div>
 
         {/* Right - Profile */}
-        <HeaderRight />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative w-8 h-8 rounded-full">
+              <Avatar className="w-8 h-8">
+                <AvatarFallback className="text-xs font-bold text-white bg-gradient-to-r from-blue-500 to-purple-500">
+                  {name?.[0]?.toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent className="w-48" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal pb-1">
+              <div className="flex flex-col space-y-0.5">
+                <p className="text-xs font-medium text-gray-800">{name}</p>
+                <p className="text-[11px] text-gray-500">
+                  {userType === "admin"
+                    ? "Administrator"
+                    : userType === "vip"
+                    ? "VIP User"
+                    : "Customer"}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => navigate("/user/profile")}
+              className="text-sm py-1.5"
+            >
+              <UserCog className="w-3.5 h-3.5 mr-2" /> Profile
+            </DropdownMenuItem>
+
+            {userType === "admin" && (
+              <DropdownMenuItem
+                onClick={() => navigate("/admin/dashboard")}
+                className="text-sm py-1.5"
+              >
+                <Settings className="w-3.5 h-3.5 mr-2" /> Admin
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => dispatch(logoutUser())}
+              className="text-sm py-1.5 text-red-600 hover:text-red-700"
+            >
+              <LogOut className="w-3.5 h-3.5 mr-2" /> Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
