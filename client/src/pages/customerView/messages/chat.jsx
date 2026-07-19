@@ -116,9 +116,30 @@ const ChatPage = () => {
       dispatch(removeTypingUser(data.senderId));
     });
 
-    socketService.onCallAccepted((data) => {
-      setConnectionState("connected");
+    socketService.onCallAccepted(async (data) => {
+      console.log("call accepted event", data);
+      // Caller receives this when receiver accepted. Start WebRTC offer generation.
       setActiveCallUi((prev) => prev ? { ...prev, callId: data.callId } : prev);
+      try {
+        if (!peerConnectionRef.current) {
+          await createPeerConnection(activeCall?.type || "voice");
+        }
+        const pc = peerConnectionRef.current;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socketService.emitCallOffer({
+          recipientId: activeCall?.recipientId,
+          callId: data.callId,
+          sdp: offer,
+          callType: activeCall?.type || "voice",
+        });
+        setConnectionState("connecting");
+      } catch (err) {
+        console.error("Failed to create offer after accept", err);
+        clearCallState();
+        setActiveCallUi(null);
+      }
+
       if (!callTimerRef.current) {
         callTimerRef.current = setInterval(() => {
           setCallDuration((prev) => prev + 1);
@@ -139,19 +160,52 @@ const ChatPage = () => {
     });
 
     socketService.onCallOffer(async (data) => {
-      if (!pendingCallRef.current) {
-        pendingCallRef.current = data;
-      }
-      if (data.senderId && Number(data.senderId) !== Number(userId)) {
-        setActiveCallUi({ callId: data.callId, type: data.callType || "audio", recipientId: data.senderId });
-        setConnectionState("connecting");
+      // Received an offer from caller
+      console.log('received call offer', data);
+      pendingCallRef.current = data;
+      // If the user already accepted (clicked accept), create answer
+      if (activeCall && activeCall.callId === data.callId) {
+        try {
+          if (!peerConnectionRef.current) {
+            await createPeerConnection(data.callType === 'video' ? 'video' : 'voice');
+          }
+          const pc = peerConnectionRef.current;
+          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socketService.emitCallAnswer({ recipientId: data.senderId, callId: data.callId, sdp: answer });
+          setConnectionState('connected');
+        } catch (err) {
+          console.error('Failed to handle incoming offer', err);
+          clearCallState();
+          setActiveCallUi(null);
+        }
+      } else {
+        // Show incoming UI (if not already)
+        setActiveCallUi({ callId: data.callId, type: data.callType === 'video' ? 'video' : 'voice', recipientId: data.senderId, isCaller: false });
+        setConnectionState('connecting');
       }
     });
 
     socketService.onCallAnswer((data) => {
+      console.log('received call answer', data);
       if (peerConnectionRef.current && data.sdp) {
-        peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        setConnectionState("connected");
+        peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp)).then(() => {
+          setConnectionState('connected');
+        }).catch((err) => console.error('setRemoteDescription failed', err));
+      }
+    });
+
+    socketService.onCallIceCandidate((data) => {
+      // add incoming remote ICE candidate
+      try {
+        if (peerConnectionRef.current && data.candidate) {
+          peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate)).catch((err) => {
+            console.error('addIceCandidate error', err);
+          });
+        }
+      } catch (err) {
+        console.error('onCallIceCandidate handler error', err);
       }
     });
 
@@ -260,7 +314,7 @@ const ChatPage = () => {
         socketService.emitCallIceCandidate({
           recipientId: activeCall?.recipientId,
           callId: activeCall?.callId,
-          candidate: event.candidate,
+          candidate: event.candidate && event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
         });
       }
     };
@@ -281,38 +335,32 @@ const ChatPage = () => {
       alert("Voice calls are available for Premium users only. Subscribe to unlock this feature!");
       return;
     }
-
     const recipientId = otherUser?.id || (currentConversation?.user1Id === userId
       ? currentConversation?.user2Id
       : currentConversation?.user1Id);
     const callId = `call_${Date.now()}`;
-    const nextCall = { callId, type: "voice", recipientId };
+    const nextCall = { callId, type: "voice", recipientId, isCaller: true };
     setActiveCallUi(nextCall);
-    setConnectionState("connecting");
+    setConnectionState("ringing");
     dispatch(setActiveCall({ callId, type: "voice", recipientId }));
 
-    try {
-      await createPeerConnection("voice");
-      const pc = peerConnectionRef.current;
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socketService.emitCallOffer({
-        recipientId,
-        callId,
-        callType: "voice",
-        sdp: offer,
-      });
-      socketService.emitCallInitiate({
-        callId,
-        callType: "voice",
-        recipientId,
-        senderId: userId,
-      });
-    } catch (error) {
-      console.error("Failed to start voice call", error);
+    socketService.emitCallInitiate({
+      callId,
+      callType: "voice",
+      recipientId,
+      senderId: userId,
+    });
+
+    // auto-cancel if not answered in 30s
+    const timeout = setTimeout(() => {
+      socketService.emitCallEnd({ recipientId, callId });
       clearCallState();
       setActiveCallUi(null);
-    }
+      alert('Call timed out');
+    }, 30000);
+    // store timer so it can be cleared when accepted/rejected
+    if (callTimerRef.current) clearTimeout(callTimerRef.current);
+    callTimerRef.current = timeout;
   };
 
   const handleStartVideoCall = async () => {
@@ -320,38 +368,31 @@ const ChatPage = () => {
       alert("Video calls are available for Premium users only. Subscribe to unlock this feature!");
       return;
     }
-
     const recipientId = otherUser?.id || (currentConversation?.user1Id === userId
       ? currentConversation?.user2Id
       : currentConversation?.user1Id);
     const callId = `call_${Date.now()}`;
-    const nextCall = { callId, type: "video", recipientId };
+    const nextCall = { callId, type: "video", recipientId, isCaller: true };
     setActiveCallUi(nextCall);
-    setConnectionState("connecting");
+    setConnectionState("ringing");
     dispatch(setActiveCall({ callId, type: "video", recipientId }));
 
-    try {
-      await createPeerConnection("video");
-      const pc = peerConnectionRef.current;
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socketService.emitCallOffer({
-        recipientId,
-        callId,
-        callType: "video",
-        sdp: offer,
-      });
-      socketService.emitCallInitiate({
-        callId,
-        callType: "video",
-        recipientId,
-        senderId: userId,
-      });
-    } catch (error) {
-      console.error("Failed to start video call", error);
+    socketService.emitCallInitiate({
+      callId,
+      callType: "video",
+      recipientId,
+      senderId: userId,
+    });
+
+    // auto-cancel if not answered in 30s
+    const timeout = setTimeout(() => {
+      socketService.emitCallEnd({ recipientId, callId });
       clearCallState();
       setActiveCallUi(null);
-    }
+      alert('Call timed out');
+    }, 30000);
+    if (callTimerRef.current) clearTimeout(callTimerRef.current);
+    callTimerRef.current = timeout;
   };
 
   const resetVoiceRecorder = () => {
@@ -513,22 +554,12 @@ const ChatPage = () => {
           </p>
           <div className="flex gap-3 justify-center">
             <Button
-              onClick={async () => {
-                const nextCall = { callId: incomingCall.callId, type: incomingCall.callType || "audio", recipientId: incomingCall.senderId };
-                setActiveCallUi(nextCall);
-                setConnectionState("connecting");
+              onClick={() => {
+                // Inform server that we're accepting; caller will generate offer
+                socketService.emitCallAccept({ senderId: incomingCall.senderId, callId: incomingCall.callId });
                 dispatch(clearIncomingCall());
-                try {
-                  await createPeerConnection(incomingCall.callType === "video" ? "video" : "voice");
-                  const pc = peerConnectionRef.current;
-                  const offer = await pc.createOffer();
-                  await pc.setLocalDescription(offer);
-                  socketService.emitCallAnswer({ recipientId: incomingCall.senderId, callId: incomingCall.callId, sdp: offer });
-                  socketService.emitCallAccept({ senderId: incomingCall.senderId, callId: incomingCall.callId });
-                } catch (error) {
-                  console.error("Failed to accept call", error);
-                  clearCallState();
-                }
+                setActiveCallUi({ callId: incomingCall.callId, type: incomingCall.callType === 'video' ? 'video' : 'voice', recipientId: incomingCall.senderId, isCaller: false });
+                setConnectionState('connecting');
               }}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -666,6 +697,7 @@ const ChatPage = () => {
 
       <CallModal
         isOpen={Boolean(activeCall)}
+        role={activeCall?.isCaller ? "caller" : "receiver"}
         callType={activeCall?.type || "audio"}
         remoteName={otherUser?.name || "Connecting"}
         localStream={localStream}
@@ -674,8 +706,17 @@ const ChatPage = () => {
         isMuted={isMuted}
         isCameraOff={isCameraOff}
         callDuration={new Date(callDuration * 1000).toISOString().slice(14, 19)}
-        onAccept={() => {}}
+        onAccept={() => {
+          // receiver accept handled by incomingCall flow; included here for safety
+          socketService.emitCallAccept({ senderId: activeCall?.recipientId, callId: activeCall?.callId });
+        }}
         onReject={() => {
+          socketService.emitCallReject({ senderId: activeCall?.recipientId, callId: activeCall?.callId });
+          clearCallState();
+          setActiveCallUi(null);
+        }}
+        onCancel={() => {
+          // caller cancels while ringing
           socketService.emitCallEnd({ recipientId: activeCall?.recipientId, callId: activeCall?.callId });
           clearCallState();
           setActiveCallUi(null);

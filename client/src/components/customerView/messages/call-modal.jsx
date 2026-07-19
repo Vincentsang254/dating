@@ -12,8 +12,10 @@ const CallModal = ({
   isMuted,
   isCameraOff,
   callDuration,
+  role = "caller",
   onAccept,
   onReject,
+  onCancel,
   onEnd,
   onToggleMute,
   onToggleCamera,
@@ -101,12 +103,30 @@ const CallModal = ({
             </div>
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={onReject} className="flex-1 border-red-200 text-red-600 hover:bg-red-50">
-                <PhoneOff className="mr-2 h-4 w-4" /> Decline
-              </Button>
-              <Button type="button" onClick={onEnd} className="flex-1 bg-red-600 text-white hover:bg-red-700">
-                <PhoneOff className="mr-2 h-4 w-4" /> End
-              </Button>
+              {role === "caller" && connectionState === "ringing" ? (
+                <Button type="button" variant="outline" onClick={onCancel} className="flex-1 border-gray-200">
+                  <PhoneOff className="mr-2 h-4 w-4" /> Cancel
+                </Button>
+              ) : null}
+
+              {role === "receiver" && connectionState !== "connected" ? (
+                <>
+                  <Button type="button" variant="outline" onClick={onReject} className="flex-1 border-red-200 text-red-600 hover:bg-red-50">
+                    <PhoneOff className="mr-2 h-4 w-4" /> Decline
+                  </Button>
+                  <Button type="button" onClick={onAccept} className="flex-1 bg-green-600 text-white hover:bg-green-700">
+                    <PhoneOff className="mr-2 h-4 w-4" /> Accept
+                  </Button>
+                </>
+              ) : null}
+
+              {connectionState === "connected" ? (
+                <>
+                  <Button type="button" variant="outline" onClick={onEnd} className="flex-1 border-red-200 text-red-600 hover:bg-red-50">
+                    <PhoneOff className="mr-2 h-4 w-4" /> End
+                  </Button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>

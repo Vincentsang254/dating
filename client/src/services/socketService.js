@@ -22,7 +22,7 @@ class SocketService {
     });
 
     this.socket.on("connect", () => {
-      console.log("Socket connected:", this.socket.id);
+      console.log(`[${new Date().toISOString()}] Socket connected: ${this.socket.id}`);
       this.connected = true;
     });
 
@@ -47,12 +47,14 @@ class SocketService {
 
   emitUserOnline(userId) {
     if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit user_online: ${userId}`);
       this.socket.emit("user_online", userId);
     }
   }
 
   emitMessageSend(data) {
     if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit message_send:`, data);
       this.socket.emit("message_send", data);
     }
   }
@@ -71,25 +73,50 @@ class SocketService {
 
   emitCallInitiate(data) {
     if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_initiate:`, data);
       this.socket.emit("call_initiate", data);
     }
   }
 
   emitCallAccept(data) {
     if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_accept:`, data);
       this.socket.emit("call_accept", data);
     }
   }
 
   emitCallReject(data) {
     if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_reject:`, data);
       this.socket.emit("call_reject", data);
     }
   }
 
   emitCallEnd(data) {
     if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_end:`, data);
       this.socket.emit("call_end", data);
+    }
+  }
+
+  emitCallOffer(data) {
+    if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_offer:`, data);
+      this.socket.emit("call_offer", data);
+    }
+  }
+
+  emitCallAnswer(data) {
+    if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_answer:`, data);
+      this.socket.emit("call_answer", data);
+    }
+  }
+
+  emitCallIceCandidate(data) {
+    if (this.socket && this.connected) {
+      console.log(`[${new Date().toISOString()}] emit call_ice_candidate:`, data);
+      this.socket.emit("call_ice_candidate", data);
     }
   }
 
@@ -113,49 +140,100 @@ class SocketService {
 
   onMessageReceive(callback) {
     if (this.socket) {
-      this.socket.on("message_receive", callback);
+      this.socket.on("message_receive", (data) => {
+        console.log(`[${new Date().toISOString()}] on message_receive:`, data);
+        callback(data);
+      });
     }
   }
 
   onUserStatus(callback) {
     if (this.socket) {
-      this.socket.on("user_status", callback);
+      this.socket.on("user_status", (data) => {
+        console.log(`[${new Date().toISOString()}] on user_status:`, data);
+        callback(data);
+      });
     }
   }
 
   onUserTyping(callback) {
     if (this.socket) {
-      this.socket.on("user_typing", callback);
+      this.socket.on("user_typing", (data) => {
+        console.log(`[${new Date().toISOString()}] on user_typing:`, data);
+        callback(data);
+      });
     }
   }
 
   onUserStopTyping(callback) {
     if (this.socket) {
-      this.socket.on("user_stop_typing", callback);
+      this.socket.on("user_stop_typing", (data) => {
+        console.log(`[${new Date().toISOString()}] on user_stop_typing:`, data);
+        callback(data);
+      });
     }
   }
 
   onCallIncoming(callback) {
     if (this.socket) {
-      this.socket.on("call_incoming", callback);
+      this.socket.on("call_incoming", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_incoming:`, data);
+        callback(data);
+      });
     }
   }
 
   onCallAccepted(callback) {
     if (this.socket) {
-      this.socket.on("call_accepted", callback);
+      this.socket.on("call_accepted", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_accepted:`, data);
+        callback(data);
+      });
     }
   }
 
   onCallRejected(callback) {
     if (this.socket) {
-      this.socket.on("call_rejected", callback);
+      this.socket.on("call_rejected", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_rejected:`, data);
+        callback(data);
+      });
     }
   }
 
   onCallEnded(callback) {
     if (this.socket) {
-      this.socket.on("call_ended", callback);
+      this.socket.on("call_ended", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_ended:`, data);
+        callback(data);
+      });
+    }
+  }
+
+  onCallOffer(callback) {
+    if (this.socket) {
+      this.socket.on("call_offer", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_offer:`, data);
+        callback(data);
+      });
+    }
+  }
+
+  onCallAnswer(callback) {
+    if (this.socket) {
+      this.socket.on("call_answer", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_answer:`, data);
+        callback(data);
+      });
+    }
+  }
+
+  onCallIceCandidate(callback) {
+    if (this.socket) {
+      this.socket.on("call_ice_candidate", (data) => {
+        console.log(`[${new Date().toISOString()}] on call_ice_candidate:`, data);
+        callback(data);
+      });
     }
   }
 

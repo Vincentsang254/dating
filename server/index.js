@@ -82,7 +82,7 @@ db.sequelize.sync().then(() => {
   };
 
   io.on("connection", (socket) => {
-    console.log("New user connected:", socket.id);
+    console.log(`[${new Date().toISOString()}] New socket connected: ${socket.id}`);
 
     // Authenticate socket connection using token sent in handshake
     (async () => {
@@ -117,6 +117,7 @@ db.sequelize.sync().then(() => {
 
     // Backwards-compatible explicit online event (keeps behavior if client still emits it)
     socket.on("user_online", (userId) => {
+      console.log(`[${new Date().toISOString()}] user_online received from socket ${socket.id} for user ${userId}`);
       onlineUsers.set(userId, socket.id);
       socket.userId = userId;
       broadcastUserStatus(userId, "online", null);
@@ -159,6 +160,7 @@ db.sequelize.sync().then(() => {
 
     // Voice/Video call initiation - verify match and premium status server-side
     socket.on("call_initiate", async (data) => {
+      console.log(`[${new Date().toISOString()}] call_initiate from socket ${socket.id}:`, data);
       try {
         const { recipientId, callType, callId } = data;
         const callerId = socket.userId;
@@ -195,45 +197,57 @@ db.sequelize.sync().then(() => {
 
         const recipientSocketId = onlineUsers.get(recipientId);
         if (recipientSocketId) {
+          console.log(`[${new Date().toISOString()}] Relaying call_incoming to socket ${recipientSocketId} for user ${recipientId}`);
           io.to(recipientSocketId).emit("call_incoming", {
             senderId: callerId,
             callType,
             callId,
           });
         } else {
+          console.log(`[${new Date().toISOString()}] call_initiate failed: recipient ${recipientId} offline`);
           socket.emit("call_rejected", { callId, reason: "recipient_offline" });
         }
       } catch (error) {
+        console.error(error);
         socket.emit("call_rejected", { callId: data.callId, reason: "internal_error" });
       }
     });
 
     socket.on("call_offer", (data) => {
+      console.log(`[${new Date().toISOString()}] call_offer from ${socket.userId}:`, { callId: data.callId, to: data.recipientId });
       const { recipientId, callId, sdp, callType } = data;
       const recipientSocketId = onlineUsers.get(recipientId);
       if (recipientSocketId) {
+        console.log(`[${new Date().toISOString()}] Relaying call_offer to socket ${recipientSocketId}`);
         io.to(recipientSocketId).emit("call_offer", {
           senderId: socket.userId,
           callId,
           sdp,
           callType,
         });
+      } else {
+        console.log(`[${new Date().toISOString()}] call_offer failed: recipient ${recipientId} offline`);
       }
     });
 
     socket.on("call_answer", (data) => {
+      console.log(`[${new Date().toISOString()}] call_answer from ${socket.userId}:`, { callId: data.callId, to: data.recipientId });
       const { recipientId, callId, sdp } = data;
       const recipientSocketId = onlineUsers.get(recipientId);
       if (recipientSocketId) {
+        console.log(`[${new Date().toISOString()}] Relaying call_answer to socket ${recipientSocketId}`);
         io.to(recipientSocketId).emit("call_answer", {
           senderId: socket.userId,
           callId,
           sdp,
         });
+      } else {
+        console.log(`[${new Date().toISOString()}] call_answer failed: recipient ${recipientId} offline`);
       }
     });
 
     socket.on("call_ice_candidate", (data) => {
+      console.log(`[${new Date().toISOString()}] call_ice_candidate from ${socket.userId}:`, { callId: data.callId, to: data.recipientId });
       const { recipientId, callId, candidate } = data;
       const recipientSocketId = onlineUsers.get(recipientId);
       if (recipientSocketId) {
@@ -248,6 +262,7 @@ db.sequelize.sync().then(() => {
     // Call acceptance
     socket.on("call_accept", (data) => {
       const { senderId, callId } = data;
+      console.log(`[${new Date().toISOString()}] call_accept from ${socket.userId} for sender ${senderId} call ${callId}`);
       const senderSocketId = onlineUsers.get(senderId);
       if (senderSocketId) {
         io.to(senderSocketId).emit("call_accepted", {
@@ -260,6 +275,7 @@ db.sequelize.sync().then(() => {
     // Call rejection
     socket.on("call_reject", (data) => {
       const { senderId, callId } = data;
+      console.log(`[${new Date().toISOString()}] call_reject from ${socket.userId} for sender ${senderId} call ${callId}`);
       const senderSocketId = onlineUsers.get(senderId);
       if (senderSocketId) {
         io.to(senderSocketId).emit("call_rejected", {
@@ -272,6 +288,7 @@ db.sequelize.sync().then(() => {
     // Call end
     socket.on("call_end", (data) => {
       const { recipientId, callId } = data;
+      console.log(`[${new Date().toISOString()}] call_end from ${socket.userId} to ${recipientId} call ${callId}`);
       const recipientSocketId = onlineUsers.get(recipientId);
       if (recipientSocketId) {
         io.to(recipientSocketId).emit("call_ended", {
