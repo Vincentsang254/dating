@@ -599,14 +599,23 @@ const ChatPage = () => {
           </button>
           {otherUser && (
             <div className="flex-1 flex items-center gap-3">
-              <img
-                src={otherUser.profilePic || "/placeholder.png"}
-                alt={otherUser.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
+              <div className="relative">
+                <img
+                  src={otherUser.profilePic || "/placeholder.png"}
+                  alt={otherUser.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <span
+                  className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${
+                    presenceInfo.status === "online" ? "bg-emerald-400" : "bg-gray-300"
+                  }`}
+                  title={presenceInfo.status === "online" ? "Online" : "Offline"}
+                />
+              </div>
               <div>
                 <h2 className="font-semibold text-gray-900">{otherUser.name}</h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 flex items-center gap-2">
+                  <span className={`inline-block h-2 w-2 rounded-full ${presenceInfo.status === "online" ? "bg-emerald-400" : "bg-gray-300"}`} />
                   {typingUsers.length > 0
                     ? "typing..."
                     : presenceInfo.status === "online"
@@ -658,11 +667,12 @@ const ChatPage = () => {
               className={`flex ${message.senderId === userId ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm ${
                   message.senderId === userId
-                    ? "bg-primary text-white rounded-br-none"
+                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-br-none shadow-lg"
                     : "bg-white border border-gray-200 text-gray-900 rounded-bl-none"
                 }`}
+                style={{ wordBreak: 'break-word' }}
               >
                 {message.messageType === "voice" || message.mediaType?.startsWith("audio/") || message.content?.startsWith("data:audio/") ? (
                   <div className="space-y-2">
@@ -678,16 +688,17 @@ const ChatPage = () => {
                 ) : (
                   <p className="text-sm break-words">{message.content}</p>
                 )}
-                <p
-                  className={`text-xs mt-1 ${
-                    message.senderId === userId ? "text-primary/70" : "text-gray-500"
-                  }`}
-                >
-                  {new Date(message.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className={`text-xs ${message.senderId === userId ? "text-white/90" : "text-gray-500"}`}>
+                    {new Date(message.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  {message.isRead ? (
+                    <span className={`text-xs ${message.senderId === userId ? "text-white/80" : "text-gray-400"}`}>Read</span>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))
