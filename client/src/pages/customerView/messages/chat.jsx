@@ -178,20 +178,28 @@ const ChatPage = () => {
         };
 
         mediaRecorder.current.onstop = async () => {
-          const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-          const formData = new FormData();
-          formData.append("conversationId", conversationId);
-          formData.append("audioFile", audioBlob);
+          const audioBlob = new Blob(audioChunks, {
+            type: mediaRecorder.current?.mimeType || "audio/webm",
+          });
 
           try {
+            const audioUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(audioBlob);
+            });
+
             await dispatch(
               sendMessage({
                 conversationId: parseInt(conversationId),
-                content: "[Voice Message]",
+                content: audioUrl,
               })
             );
           } catch (error) {
             console.error("Failed to send voice message:", error);
+          } finally {
+            stream.getTracks().forEach((track) => track.stop());
           }
         };
 
@@ -359,7 +367,22 @@ const ChatPage = () => {
                     : "bg-white border border-gray-200 text-gray-900 rounded-bl-none"
                 }`}
               >
-                <p className="text-sm break-words">{message.content}</p>
+                {message.content?.startsWith("data:audio/") ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-base">
+                        🎤
+                      </span>
+                      <span>Voice message</span>
+                    </div>
+                    <audio controls className="w-full max-w-[220px]">
+                      <source src={message.content} />
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                ) : (
+                  <p className="text-sm break-words">{message.content}</p>
+                )}
                 <p
                   className={`text-xs mt-1 ${
                     message.senderId === userId ? "text-primary/70" : "text-gray-500"
