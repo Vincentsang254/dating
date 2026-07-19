@@ -1,11 +1,11 @@
 /* eslint-disable react/prop-types */
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, User, MessageSquare, Star, CreditCard, Settings, LogOut, Heart } from "lucide-react";
-import { useDispatch } from "react-redux";
+import { Home, User, MessageSquare, Star, CreditCard, Settings, LogOut, Heart, Shield } from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "@/redux/slices/authSlice";
 
-const navItems = [
+const baseNavItems = [
 	{ id: "discover", label: "Discover", path: "/user/discover", icon: Home },
 	{ id: "matches", label: "Matches", path: "/user/matches", icon: Heart },
 	{ id: "profile", label: "Profile", path: "/user/profile", icon: User },
@@ -35,10 +35,18 @@ const SidebarItem = ({ item, active, onNavigate }) => {
 const CustomerSidebar = ({ className = "w-72", open = false, setOpen = null }) => {
 	const location = useLocation();
 	const dispatch = useDispatch();
+	const { userType } = useSelector((state) => state.auth);
 
 	const handleNavigate = () => {
 		if (setOpen) setOpen(false);
 	};
+
+	const navItems = [
+		...baseNavItems,
+		...(userType === "admin"
+			? [{ id: "admin-dashboard", label: "Admin Dashboard", path: "/admin/dashboard", icon: Shield }]
+			: []),
+	];
 
 	const handleLogout = () => {
 		dispatch(logoutUser());
