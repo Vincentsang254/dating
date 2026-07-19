@@ -310,7 +310,7 @@ exports.discoverUsers = async (req, res) => {
       where: {
         id: { [Op.notIn]: excludeIds },
         verified: true,
-        userType: "customer",
+        userType: { [Op.in]: ["customer", "vip"] },
       },
       attributes: [
         "id",

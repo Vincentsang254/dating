@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { discoverUsers, likeUser, unlikeUser } from "@/redux/slices/matchingSlice";
+import { fetchUsers } from "@/redux/slices/userSlice";
 import { Heart, X, AlertCircle, Eye, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -16,9 +17,12 @@ const DiscoverPage = () => {
     discoverOffset,
     hasMoreDiscoverUsers,
   } = useSelector((state) => state.matching);
+  const fallbackUsers = useSelector((state) => state.user.users);
+  const displayedUsers = users.length > 0 ? users : fallbackUsers;
 
   useEffect(() => {
     dispatch(discoverUsers({ limit: 20, offset: 0 }));
+    dispatch(fetchUsers());
   }, [dispatch]);
 
   useEffect(() => {
@@ -29,7 +33,7 @@ const DiscoverPage = () => {
     dispatch(discoverUsers({ limit: 20, offset: discoverOffset }));
   }, [currentDiscoverIndex, discoverOffset, hasMoreDiscoverUsers, users.length, dispatch]);
 
-  const currentUser = users[currentDiscoverIndex];
+  const currentUser = displayedUsers[currentDiscoverIndex];
 
   const handleLike = () => {
     if (currentUser) {
@@ -76,7 +80,7 @@ const DiscoverPage = () => {
     );
   }
 
-  if (!users || users.length === 0) {
+  if (!displayedUsers || displayedUsers.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-lg border border-gray-200 max-w-md w-full p-8 text-center">
@@ -84,7 +88,7 @@ const DiscoverPage = () => {
             <Heart className="w-8 h-8 text-gray-400" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">No Profiles Available</h2>
-          <p className="text-gray-600 mb-6">Check back later for more profiles to discover</p>
+          <p className="text-gray-600 mb-6">Check back later for more profiles to discover.</p>
           <Button onClick={() => dispatch(discoverUsers({ limit: 20, offset: 0 }))}>
             Refresh
           </Button>
@@ -93,7 +97,7 @@ const DiscoverPage = () => {
     );
   }
 
-  if (currentDiscoverIndex >= users.length && !hasMoreDiscoverUsers) {
+  if (currentDiscoverIndex >= displayedUsers.length && !hasMoreDiscoverUsers) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-lg border border-gray-200 max-w-md w-full p-8 text-center">
@@ -120,7 +124,7 @@ const DiscoverPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Discover</h1>
           <p className="text-gray-600">
-            Profile {Math.min(currentDiscoverIndex + 1, users.length)} of {users.length}
+            Profile {Math.min(currentDiscoverIndex + 1, displayedUsers.length)} of {displayedUsers.length}
           </p>
         </div>
 
