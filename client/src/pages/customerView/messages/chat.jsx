@@ -607,7 +607,7 @@ const ChatPage = () => {
                 />
                 <span
                   className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${
-                    presenceInfo.status === "online" ? "bg-emerald-400" : "bg-gray-300"
+                    presenceInfo.status === "online" ? "bg-emerald-400 animate-pulse" : "bg-gray-300"
                   }`}
                   title={presenceInfo.status === "online" ? "Online" : "Offline"}
                 />
@@ -615,7 +615,7 @@ const ChatPage = () => {
               <div>
                 <h2 className="font-semibold text-gray-900">{otherUser.name}</h2>
                 <p className="text-xs text-gray-500 flex items-center gap-2">
-                  <span className={`inline-block h-2 w-2 rounded-full ${presenceInfo.status === "online" ? "bg-emerald-400" : "bg-gray-300"}`} />
+                  <span className={`inline-block h-2 w-2 rounded-full ${presenceInfo.status === "online" ? "bg-emerald-400 animate-pulse" : "bg-gray-300"}`} />
                   {typingUsers.length > 0
                     ? "typing..."
                     : presenceInfo.status === "online"
@@ -667,10 +667,10 @@ const ChatPage = () => {
               className={`flex ${message.senderId === userId ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm ${
+                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg shadow-sm transition-transform duration-200 ease-in-out transform ${
                   message.senderId === userId
-                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-br-none shadow-lg"
-                    : "bg-white border border-gray-200 text-gray-900 rounded-bl-none"
+                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-br-none shadow-lg hover:scale-105"
+                    : "bg-white border border-gray-200 text-gray-900 rounded-bl-none hover:scale-102"
                 }`}
                 style={{ wordBreak: 'break-word' }}
               >
