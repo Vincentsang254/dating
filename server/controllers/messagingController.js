@@ -1,5 +1,8 @@
+const fs = require("fs");
+const path = require("path");
 const { Users, Conversations, Messages, Matches, BlockedUsers } = require("../models");
 const { Op } = require("sequelize");
+const { uploadMedia } = require("../services/mediaUploadService");
 
 // Get or create conversation
 exports.getOrCreateConversation = async (req, res) => {
@@ -216,20 +219,27 @@ exports.getMessages = async (req, res) => {
 // Send message
 exports.sendMessage = async (req, res) => {
   try {
-    const { conversationId, content } = req.body;
+    const { conversationId, content, messageType = "text", mediaUrl, mediaType, duration } = req.body;
     const userId = req.user.id;
 
-    // Validate input
-    if (!conversationId || !content || content.trim() === "") {
+    if (!conversationId) {
       return res.status(400).json({
         success: false,
         message: "Invalid message data",
         data: null,
-        error: "conversationId and content are required",
+        error: "conversationId is required",
       });
     }
 
-    // Verify conversation exists and user is part of it
+    if (!content && !mediaUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid message data",
+        data: null,
+        error: "content or mediaUrl is required",
+      });
+    }
+
     const conversation = await Conversations.findByPk(conversationId);
 
     if (!conversation) {
@@ -250,28 +260,30 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    // Determine recipient
     const recipientId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
+    const normalizedType = ["text", "image", "voice"].includes(messageType) ? messageType : "text";
+    const normalizedContent = typeof content === "string" ? content.trim() : "";
 
-    // Create message
     const message = await Messages.create({
       conversationId,
       senderId: userId,
       recipientId,
-      content: content.trim(),
+      content: normalizedContent || (mediaUrl || ""),
+      messageType: normalizedType,
+      mediaUrl: mediaUrl || null,
+      mediaType: mediaType || null,
+      duration: duration || null,
     });
 
-    // Update conversation's last message
     await Conversations.update(
       {
-        lastMessage: content.trim(),
+        lastMessage: normalizedContent || (normalizedType === "voice" ? "Voice message" : "Media"),
         lastMessageAt: new Date(),
         lastMessageUserId: userId,
       },
       { where: { id: conversationId } }
     );
 
-    // Fetch created message with sender info
     const messageWithSender = await Messages.findByPk(message.id, {
       include: [
         {
@@ -291,6 +303,56 @@ exports.sendMessage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error sending message",
+      data: null,
+      error: error.message,
+    });
+  }
+};
+
+exports.uploadVoiceMessage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: "No audio file uploaded",
+        data: null,
+        error: "An audio file is required",
+      });
+    }
+
+    if (!file.mimetype.startsWith("audio/")) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file type",
+        data: null,
+        error: "Only audio files are allowed",
+      });
+    }
+
+    const uploadResult = await uploadMedia(file.path, "messages/voice", "video");
+
+    fs.unlinkSync(file.path);
+
+    res.status(200).json({
+      success: true,
+      message: "Voice message uploaded successfully",
+      data: {
+        url: uploadResult.url,
+        publicId: uploadResult.publicId,
+        type: "voice",
+      },
+    });
+  } catch (error) {
+    if (req.file?.path) {
+      try { fs.unlinkSync(req.file.path); } catch (cleanupError) { console.error(cleanupError); }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Voice message upload failed",
       data: null,
       error: error.message,
     });

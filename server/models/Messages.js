@@ -43,6 +43,23 @@ module.exports = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: false,
       },
+      messageType: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "text",
+      },
+      mediaUrl: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      mediaType: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+      },
+      duration: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
       isRead: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   getConversations,
   getMessages,
@@ -19,6 +20,7 @@ import {
 import { Send, ArrowLeft, AlertCircle, Phone, Video, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import socketService from "@/services/socketService";
+import CallModal from "@/components/customerView/messages/call-modal";
 
 const ChatPage = () => {
   const dispatch = useDispatch();
@@ -40,9 +42,26 @@ const ChatPage = () => {
 
   const [messageText, setMessageText] = useState("");
   const [voiceRecording, setVoiceRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState(null);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState(null);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
   const [presenceInfo, setPresenceInfo] = useState({ status: "offline", lastSeenAt: null });
+  const [activeCall, setActiveCallUi] = useState(null);
+  const [callDuration, setCallDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [connectionState, setConnectionState] = useState("idle");
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
   const messagesEndRef = useRef(null);
   const mediaRecorder = useRef(null);
+  const recordingTimerRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const streamRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const callTimerRef = useRef(null);
+  const pendingCallRef = useRef(null);
 
   useEffect(() => {
     if (conversationId) {
@@ -97,17 +116,82 @@ const ChatPage = () => {
       dispatch(removeTypingUser(data.senderId));
     });
 
+    socketService.onCallAccepted((data) => {
+      setConnectionState("connected");
+      setActiveCallUi((prev) => prev ? { ...prev, callId: data.callId } : prev);
+      if (!callTimerRef.current) {
+        callTimerRef.current = setInterval(() => {
+          setCallDuration((prev) => prev + 1);
+        }, 1000);
+      }
+    });
+
+    socketService.onCallRejected((data) => {
+      setConnectionState("idle");
+      setActiveCallUi(null);
+      clearCallState();
+    });
+
+    socketService.onCallEnded(() => {
+      setConnectionState("idle");
+      setActiveCallUi(null);
+      clearCallState();
+    });
+
+    socketService.onCallOffer(async (data) => {
+      if (!pendingCallRef.current) {
+        pendingCallRef.current = data;
+      }
+      if (data.senderId && Number(data.senderId) !== Number(userId)) {
+        setActiveCallUi({ callId: data.callId, type: data.callType || "audio", recipientId: data.senderId });
+        setConnectionState("connecting");
+      }
+    });
+
+    socketService.onCallAnswer((data) => {
+      if (peerConnectionRef.current && data.sdp) {
+        peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        setConnectionState("connected");
+      }
+    });
+
+    socketService.onCallIceCandidate((data) => {
+      if (peerConnectionRef.current && data.candidate) {
+        peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    });
+
     return () => {
       socketService.removeEventListener("message_receive");
       socketService.removeEventListener("call_incoming");
       socketService.removeEventListener("user_typing");
       socketService.removeEventListener("user_stop_typing");
+      socketService.removeEventListener("call_accepted");
+      socketService.removeEventListener("call_rejected");
+      socketService.removeEventListener("call_ended");
+      socketService.removeEventListener("call_offer");
+      socketService.removeEventListener("call_answer");
+      socketService.removeEventListener("call_ice_candidate");
     };
   }, [token, userId, dispatch]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (callTimerRef.current) clearInterval(callTimerRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+      if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+    };
+  }, [recordedAudioUrl]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -131,44 +215,160 @@ const ChatPage = () => {
     setMessageText("");
   };
 
-  const handleStartVoiceCall = () => {
+  const clearCallState = () => {
+    if (callTimerRef.current) {
+      clearInterval(callTimerRef.current);
+      callTimerRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setLocalStream(null);
+    setRemoteStream(null);
+    setCallDuration(0);
+    setIsMuted(false);
+    setIsCameraOff(false);
+    setConnectionState("idle");
+  };
+
+  const createPeerConnection = async (callType) => {
+    const configuration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }] };
+    const pc = new RTCPeerConnection(configuration);
+    peerConnectionRef.current = pc;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: callType === "video",
+      audio: true,
+    });
+    streamRef.current = stream;
+    setLocalStream(stream);
+
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+    pc.ontrack = (event) => {
+      const [remoteStreamObj] = event.streams;
+      setRemoteStream(remoteStreamObj);
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketService.emitCallIceCandidate({
+          recipientId: activeCall?.recipientId,
+          callId: activeCall?.callId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") {
+        setConnectionState("connected");
+      } else if (pc.connectionState === "connecting") {
+        setConnectionState("connecting");
+      }
+    };
+
+    return pc;
+  };
+
+  const handleStartVoiceCall = async () => {
     if (!userFeatures.features.voiceCalls) {
       alert("Voice calls are available for Premium users only. Subscribe to unlock this feature!");
       return;
     }
 
-    const callId = `call_${Date.now()}`;
     const recipientId = otherUser?.id || (currentConversation?.user1Id === userId
       ? currentConversation?.user2Id
       : currentConversation?.user1Id);
-
+    const callId = `call_${Date.now()}`;
+    const nextCall = { callId, type: "voice", recipientId };
+    setActiveCallUi(nextCall);
+    setConnectionState("connecting");
     dispatch(setActiveCall({ callId, type: "voice", recipientId }));
-    socketService.emitCallInitiate({
-      callId,
-      callType: "voice",
-      recipientId,
-      senderId: userId,
-    });
+
+    try {
+      await createPeerConnection("voice");
+      const pc = peerConnectionRef.current;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socketService.emitCallOffer({
+        recipientId,
+        callId,
+        callType: "voice",
+        sdp: offer,
+      });
+      socketService.emitCallInitiate({
+        callId,
+        callType: "voice",
+        recipientId,
+        senderId: userId,
+      });
+    } catch (error) {
+      console.error("Failed to start voice call", error);
+      clearCallState();
+      setActiveCallUi(null);
+    }
   };
 
-  const handleStartVideoCall = () => {
+  const handleStartVideoCall = async () => {
     if (!userFeatures.features.videoCalls) {
       alert("Video calls are available for Premium users only. Subscribe to unlock this feature!");
       return;
     }
 
-    const callId = `call_${Date.now()}`;
     const recipientId = otherUser?.id || (currentConversation?.user1Id === userId
       ? currentConversation?.user2Id
       : currentConversation?.user1Id);
-
+    const callId = `call_${Date.now()}`;
+    const nextCall = { callId, type: "video", recipientId };
+    setActiveCallUi(nextCall);
+    setConnectionState("connecting");
     dispatch(setActiveCall({ callId, type: "video", recipientId }));
-    socketService.emitCallInitiate({
-      callId,
-      callType: "video",
-      recipientId,
-      senderId: userId,
-    });
+
+    try {
+      await createPeerConnection("video");
+      const pc = peerConnectionRef.current;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socketService.emitCallOffer({
+        recipientId,
+        callId,
+        callType: "video",
+        sdp: offer,
+      });
+      socketService.emitCallInitiate({
+        callId,
+        callType: "video",
+        recipientId,
+        senderId: userId,
+      });
+    } catch (error) {
+      console.error("Failed to start video call", error);
+      clearCallState();
+      setActiveCallUi(null);
+    }
+  };
+
+  const resetVoiceRecorder = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    audioChunksRef.current = [];
+    mediaRecorder.current = null;
+    setVoiceRecording(false);
+    setRecordingTime(0);
+    setRecordedAudioUrl(null);
+    setRecordedAudioBlob(null);
   };
 
   const handleSendVoiceMessage = async () => {
@@ -180,48 +380,71 @@ const ChatPage = () => {
     if (voiceRecording) {
       mediaRecorder.current?.stop();
       setVoiceRecording(false);
-    } else {
+      return;
+    }
+
+    if (recordedAudioBlob) {
+      setIsUploadingVoice(true);
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder.current = new MediaRecorder(stream);
-        
-        const audioChunks = [];
-        mediaRecorder.current.ondataavailable = (e) => {
-          audioChunks.push(e.data);
-        };
+        const formData = new FormData();
+        formData.append("audio", recordedAudioBlob, "voice-message.webm");
 
-        mediaRecorder.current.onstop = async () => {
-          const audioBlob = new Blob(audioChunks, {
-            type: mediaRecorder.current?.mimeType || "audio/webm",
-          });
+        const uploadResponse = await axios.post(`${import.meta.env.VITE_API_URL || "https://dating-rpig.onrender.com/api"}/messaging/messages/voice`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        });
 
-          try {
-            const audioUrl = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(audioBlob);
-            });
+        await dispatch(
+          sendMessage({
+            conversationId: parseInt(conversationId),
+            content: uploadResponse.data.data.url,
+            messageType: "voice",
+            mediaUrl: uploadResponse.data.data.url,
+            mediaType: "audio/webm",
+            duration: recordingTime,
+          })
+        );
 
-            await dispatch(
-              sendMessage({
-                conversationId: parseInt(conversationId),
-                content: audioUrl,
-              })
-            );
-          } catch (error) {
-            console.error("Failed to send voice message:", error);
-          } finally {
-            stream.getTracks().forEach((track) => track.stop());
-          }
-        };
-
-        mediaRecorder.current.start();
-        setVoiceRecording(true);
+        resetVoiceRecorder();
       } catch (error) {
-        console.error("Microphone access denied:", error);
-        alert("Please enable microphone access to send voice messages");
+        console.error("Failed to upload voice message:", error);
+        alert("Unable to upload voice message right now.");
+      } finally {
+        setIsUploadingVoice(false);
       }
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      mediaRecorder.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorder.current.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: mediaRecorder.current?.mimeType || "audio/webm",
+        });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        setRecordedAudioBlob(audioBlob);
+        setRecordedAudioUrl(audioUrl);
+      };
+
+      mediaRecorder.current.start();
+      setVoiceRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error("Microphone access denied:", error);
+      alert("Please enable microphone access to send voice messages");
     }
   };
 
@@ -278,7 +501,6 @@ const ChatPage = () => {
     );
   }
 
-  // Handle incoming call
   if (incomingCall) {
     return (
       <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -291,12 +513,22 @@ const ChatPage = () => {
           </p>
           <div className="flex gap-3 justify-center">
             <Button
-              onClick={() => {
-                socketService.emitCallAccept({
-                  senderId: incomingCall.senderId,
-                  callId: incomingCall.callId,
-                });
+              onClick={async () => {
+                const nextCall = { callId: incomingCall.callId, type: incomingCall.callType || "audio", recipientId: incomingCall.senderId };
+                setActiveCallUi(nextCall);
+                setConnectionState("connecting");
                 dispatch(clearIncomingCall());
+                try {
+                  await createPeerConnection(incomingCall.callType === "video" ? "video" : "voice");
+                  const pc = peerConnectionRef.current;
+                  const offer = await pc.createOffer();
+                  await pc.setLocalDescription(offer);
+                  socketService.emitCallAnswer({ recipientId: incomingCall.senderId, callId: incomingCall.callId, sdp: offer });
+                  socketService.emitCallAccept({ senderId: incomingCall.senderId, callId: incomingCall.callId });
+                } catch (error) {
+                  console.error("Failed to accept call", error);
+                  clearCallState();
+                }
               }}
               className="bg-green-600 hover:bg-green-700"
             >
@@ -309,6 +541,8 @@ const ChatPage = () => {
                   callId: incomingCall.callId,
                 });
                 dispatch(clearIncomingCall());
+                clearCallState();
+                setActiveCallUi(null);
               }}
               variant="outline"
               className="bg-red-600 hover:bg-red-700 text-white border-red-600"
@@ -399,7 +633,7 @@ const ChatPage = () => {
                     : "bg-white border border-gray-200 text-gray-900 rounded-bl-none"
                 }`}
               >
-                {message.content?.startsWith("data:audio/") ? (
+                {message.messageType === "voice" || message.mediaType?.startsWith("audio/") || message.content?.startsWith("data:audio/") ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-base">
@@ -407,10 +641,8 @@ const ChatPage = () => {
                       </span>
                       <span>Voice message</span>
                     </div>
-                    <audio controls className="w-full max-w-[220px]">
-                      <source src={message.content} />
-                      Your browser does not support audio playback.
-                    </audio>
+                    <audio controls className="w-full max-w-[220px]" src={message.mediaUrl || message.content} />
+                    {message.duration ? <p className="text-xs opacity-80">{message.duration}s</p> : null}
                   </div>
                 ) : (
                   <p className="text-sm break-words">{message.content}</p>
@@ -432,19 +664,81 @@ const ChatPage = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      <CallModal
+        isOpen={Boolean(activeCall)}
+        callType={activeCall?.type || "audio"}
+        remoteName={otherUser?.name || "Connecting"}
+        localStream={localStream}
+        remoteStream={remoteStream}
+        connectionState={connectionState}
+        isMuted={isMuted}
+        isCameraOff={isCameraOff}
+        callDuration={new Date(callDuration * 1000).toISOString().slice(14, 19)}
+        onAccept={() => {}}
+        onReject={() => {
+          socketService.emitCallEnd({ recipientId: activeCall?.recipientId, callId: activeCall?.callId });
+          clearCallState();
+          setActiveCallUi(null);
+        }}
+        onEnd={() => {
+          socketService.emitCallEnd({ recipientId: activeCall?.recipientId, callId: activeCall?.callId });
+          clearCallState();
+          setActiveCallUi(null);
+        }}
+        onToggleMute={() => {
+          if (streamRef.current) {
+            streamRef.current.getAudioTracks().forEach((track) => {
+              track.enabled = !track.enabled;
+            });
+          }
+          setIsMuted((prev) => !prev);
+        }}
+        onToggleCamera={() => {
+          if (streamRef.current) {
+            streamRef.current.getVideoTracks().forEach((track) => {
+              track.enabled = !track.enabled;
+            });
+          }
+          setIsCameraOff((prev) => !prev);
+        }}
+        onSwitchCamera={() => {
+          if (streamRef.current?.getVideoTracks().length) {
+            const videoTrack = streamRef.current.getVideoTracks()[0];
+            videoTrack.applyConstraints({ facingMode: videoTrack.getSettings().facingMode === "user" ? { exact: "environment" } : { exact: "user" } });
+          }
+        }}
+      />
+
       {/* Message Input */}
       <div className="bg-white border-t border-gray-200 p-4">
         <form onSubmit={handleSendMessage} className="flex gap-3">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleSendVoiceMessage}
-            disabled={!userFeatures.features.voiceMessages}
-            className={voiceRecording ? "bg-red-100 text-red-600" : ""}
-          >
-            <Mic className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {voiceRecording && (
+              <span className="text-sm font-medium text-red-600">
+                {recordingTime}s
+              </span>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleSendVoiceMessage}
+              disabled={!userFeatures.features.voiceMessages || isUploadingVoice}
+              className={voiceRecording ? "bg-red-100 text-red-600" : ""}
+            >
+              <Mic className="w-4 h-4" />
+            </Button>
+            {(voiceRecording || recordedAudioBlob) && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={resetVoiceRecorder}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
           <input
             type="text"
             value={messageText}

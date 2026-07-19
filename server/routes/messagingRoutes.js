@@ -1,6 +1,7 @@
 const express = require("express");
 const messagingController = require("../controllers/messagingController");
 const { verifyToken } = require("../middlewares/authMiddleware");
+const upload = require("../middlewares/multerUpload");
 
 const router = express.Router();
 
@@ -18,6 +19,9 @@ router.get("/conversations/:conversationId/messages", messagingController.getMes
 
 // Send message to a conversation
 router.post("/messages", messagingController.sendMessage);
+
+// Upload a voice message attachment
+router.post("/messages/voice", upload.single("audio"), messagingController.uploadVoiceMessage);
 
 // Mark messages as read
 router.post("/mark-read", messagingController.markAsRead);
