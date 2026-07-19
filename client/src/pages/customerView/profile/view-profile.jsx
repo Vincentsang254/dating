@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { fetchUserProfile } from "@/redux/slices/userSlice";
+import { fetchUserProfile, reportUser } from "@/redux/slices/userSlice";
 import { likeUser } from "@/redux/slices/matchingSlice";
 import { getOrCreateConversation, setCurrentConversation } from "@/redux/slices/messagingSlice";
-import { Heart, MessageCircle, Phone, Video, ArrowLeft, AlertCircle } from "lucide-react";
+import { Heart, MessageCircle, Phone, Video, ArrowLeft, AlertCircle, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ViewProfilePage = () => {
@@ -43,6 +43,21 @@ const ViewProfilePage = () => {
       return;
     }
     navigate(`/user/messages?userId=${userId}&callType=${callType}`);
+  };
+
+  const handleReport = () => {
+    if (!userId) return;
+    const reason = window.prompt("Please tell us why you are reporting this user:");
+    if (!reason) return;
+    dispatch(reportUser({ reportedUserId: userId, reason }));
+  };
+
+  const handleBlock = () => {
+    if (!userId) return;
+    if (window.confirm("Are you sure you want to block this user?")) {
+      dispatch(blockUser({ blockedUserId: userId }));
+      navigate("/user/discover");
+    }
   };
 
   if (viewedProfileStatus === "pending") {
@@ -106,6 +121,14 @@ const ViewProfilePage = () => {
                 <Button variant="outline" onClick={() => handleCall("video")} className="flex items-center gap-2">
                   <Video className="w-4 h-4" />
                   Video Call
+                </Button>
+                <Button variant="destructive" onClick={handleReport} className="flex items-center gap-2">
+                  <Flag className="w-4 h-4" />
+                  Report
+                </Button>
+                <Button variant="destructive" onClick={handleBlock} className="flex items-center gap-2">
+                  <Flag className="w-4 h-4" />
+                  Block
                 </Button>
               </div>
             </div>

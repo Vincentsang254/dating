@@ -59,6 +59,30 @@ export const updateProfile = createAsyncThunk("user/updateProfile", async (paylo
   }
 });
 
+export const reportUser = createAsyncThunk("user/reportUser", async (payload, { rejectWithValue }) => {
+  try {
+    const headers = setHeaders();
+    const response = await axios.post(`${url}/users/profile/report`, payload, headers);
+    toast.success(response.data.message, { position: "top-center" });
+    return response.data;
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to report user", { position: "top-center" });
+    return rejectWithValue(error.response?.data || { message: error.message });
+  }
+});
+
+export const blockUser = createAsyncThunk("user/blockUser", async (payload, { rejectWithValue }) => {
+  try {
+    const headers = setHeaders();
+    const response = await axios.post(`${url}/users/profile/block`, payload, headers);
+    toast.success(response.data.message, { position: "top-center" });
+    return response.data;
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to block user", { position: "top-center" });
+    return rejectWithValue(error.response?.data || { message: error.message });
+  }
+});
+
 export const uploadProfilePhoto = createAsyncThunk("user/uploadProfilePhoto", async (file, { dispatch, rejectWithValue }) => {
   try {
     const headers = setHeaders();

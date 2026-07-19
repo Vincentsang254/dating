@@ -1,4 +1,4 @@
-const { Users, Conversations, Messages, Matches } = require("../models");
+const { Users, Conversations, Messages, Matches, BlockedUsers } = require("../models");
 const { Op } = require("sequelize");
 
 // Get or create conversation
@@ -34,6 +34,24 @@ exports.getOrCreateConversation = async (req, res) => {
         message: "Conversation not allowed",
         data: null,
         error: "You must be matched to start a conversation",
+      });
+    }
+
+    const blocked = await BlockedUsers.findOne({
+      where: {
+        [Op.or]: [
+          { blockerId: userId, blockedUserId: otherUserId },
+          { blockerId: otherUserId, blockedUserId: userId },
+        ],
+      },
+    });
+
+    if (blocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Conversation not allowed",
+        data: null,
+        error: "One of the users has blocked the other",
       });
     }
 

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchProfile } from "@/redux/slices/userSlice";
 import { discoverUsers, getLikesReceived, getUserMatches } from "@/redux/slices/matchingSlice";
 import { getConversations, getUnreadCount } from "@/redux/slices/messagingSlice";
-import { Heart, MessageCircle, Zap, TrendingUp, Users, Shield, Star } from "lucide-react";
+import { Heart, MessageCircle, Zap, TrendingUp, Users, Shield, Star, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -34,6 +34,14 @@ const CustomerDashboard = () => {
 
 	const completedCount = completionItems.filter(Boolean).length;
 	const completionPercent = Math.round((completedCount / completionItems.length) * 100);
+
+	const onboardingSteps = [
+		{ label: "Add a profile photo", completed: !!profile?.profilePic, href: "/user/profile" },
+		{ label: "Write your bio", completed: !!profile?.bio, href: "/user/profile" },
+		{ label: "Add interests", completed: !!profile?.interests, href: "/user/profile" },
+		{ label: "Set your location", completed: !!profile?.location, href: "/user/profile" },
+		{ label: "Browse matches", completed: (matches?.length ?? 0) > 0, href: "/user/discover" },
+	];
 
 	const StatCard = ({ icon: Icon, label, value, color }) => (
 		<div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-shadow duration-200">
@@ -127,8 +135,38 @@ const CustomerDashboard = () => {
 							<QuickAction icon={Zap} label="Boost Profile" description="Get more visibility from active users." href="/user/payments" />
 						</div>
 
-						<section className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">
-							<div className="mb-5 flex items-center justify-between gap-4">
+						<section className="rounded-[1.5rem] border border-slate-200 bg-white p-6 shadow-sm">								<div className="mb-5 flex items-center justify-between gap-4">
+									<div>
+										<h2 className="text-xl font-semibold text-slate-900">Get started</h2>
+										<p className="text-sm text-slate-500">Complete these steps to make your profile more discoverable and active.</p>
+									</div>
+									<span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">{completionPercent}% complete</span>
+								</div>
+								<div className="space-y-3">
+									{onboardingSteps.map((step) => (
+										<Link
+											key={step.label}
+											to={step.href}
+											className="flex items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100"
+										>
+											<div className="flex items-center gap-3">
+												<span className={`flex h-9 w-9 items-center justify-center rounded-full ${step.completed ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"}`}>
+													<CheckCircle className="w-5 h-5" />
+												</span>
+												<div>
+														<p className="text-sm font-semibold text-slate-900">{step.label}</p>
+														<p className="text-xs text-slate-500">{step.completed ? "Completed" : "Pending"}</p>
+													</div>
+											</div>
+											{step.completed ? (
+												<span className="text-xs font-semibold text-emerald-600">Done</span>
+											) : (
+												<span className="text-xs font-semibold text-slate-500">Tap to complete</span>
+											)}
+										</Link>
+									))}
+								</div>
+							</section>							<div className="mb-5 flex items-center justify-between gap-4">
 								<div>
 									<h2 className="text-xl font-semibold text-slate-900">Suggested Profiles</h2>
 									<p className="text-sm text-slate-500">Based on your current activity and matches.</p>

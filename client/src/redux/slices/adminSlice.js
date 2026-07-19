@@ -7,6 +7,7 @@ const initialState = {
   users: [],
   payments: [],
   reports: null,
+  userReports: [],
   loading: false,
   error: null,
 };
@@ -69,6 +70,32 @@ export const fetchAdminReports = createAsyncThunk(
   }
 );
 
+export const fetchAdminUserReports = createAsyncThunk(
+  "admin/fetchAdminUserReports",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.get(`${url}/admin/reports/list`, authHeader(token));
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to load user reports");
+    }
+  }
+);
+
+export const reviewAdminUserReport = createAsyncThunk(
+  "admin/reviewAdminUserReport",
+  async ({ reportId, status }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.put(`${url}/admin/reports/${reportId}`, { status }, authHeader(token));
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to update report status");
+    }
+  }
+);
+
 const adminSlice = createSlice({
   name: "admin",
   initialState,
@@ -95,6 +122,15 @@ const adminSlice = createSlice({
       })
       .addCase(fetchAdminReports.fulfilled, (state, action) => {
         state.reports = action.payload;
+      })
+      .addCase(fetchAdminUserReports.fulfilled, (state, action) => {
+        state.userReports = action.payload;
+      })
+      .addCase(reviewAdminUserReport.fulfilled, (state, action) => {
+        state.userReports = state.userReports.filter((report) => report.id !== action.payload.id);
+        if (state.reports?.openReports != null) {
+          state.reports.openReports = Math.max(0, state.reports.openReports - 1);
+        }
       });
   },
 });

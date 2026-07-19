@@ -1,5 +1,5 @@
 const { Op, fn, col } = require("sequelize");
-const { Users, Payments, Subscriptions, SubscriptionPlans, Matches, Messages } = require("../models");
+const { Users, Payments, Subscriptions, SubscriptionPlans, Matches, Messages, UserReports } = require("../models");
 
 const getDashboardOverview = async (req, res) => {
   try {
@@ -125,10 +125,11 @@ const getAdminPayments = async (req, res) => {
 
 const getAdminReports = async (req, res) => {
   try {
-    const [premiumUsers, vipUsers, pendingPayments] = await Promise.all([
+    const [premiumUsers, vipUsers, pendingPayments, openReports] = await Promise.all([
       Subscriptions.count({ where: { tier: "premium", status: "active" } }),
       Subscriptions.count({ where: { tier: "vip", status: "active" } }),
       Payments.count({ where: { status: "pending" } }),
+      UserReports.count({ where: { status: "open" } }),
     ]);
 
     return res.status(200).json({
@@ -138,6 +139,7 @@ const getAdminReports = async (req, res) => {
         premiumUsers,
         vipUsers,
         pendingPayments,
+        openReports,
       },
     });
   } catch (error) {
@@ -150,9 +152,74 @@ const getAdminReports = async (req, res) => {
   }
 };
 
+const getAdminUserReports = async (req, res) => {
+  try {
+    const reports = await UserReports.findAll({
+      where: { status: "open" },
+      include: [
+        {
+          model: Users,
+          as: "reporter",
+          attributes: ["id", "name", "email"],
+        },
+        {
+          model: Users,
+          as: "reportedUser",
+          attributes: ["id", "name", "email"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: 50,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "User reports retrieved successfully",
+      data: reports,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve user reports.",
+      data: null,
+      error: error.message,
+    });
+  }
+};
+
+const reviewUserReport = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    const { status } = req.body;
+
+    if (!["reviewed", "dismissed"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid report status.", data: null });
+    }
+
+    const report = await UserReports.findByPk(reportId);
+    if (!report) {
+      return res.status(404).json({ success: false, message: "Report not found.", data: null });
+    }
+
+    report.status = status;
+    await report.save();
+
+    return res.status(200).json({ success: true, message: "Report updated successfully.", data: report });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update report.",
+      data: null,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboardOverview,
   getAdminUsers,
   getAdminPayments,
   getAdminReports,
+  getAdminUserReports,
+  reviewUserReport,
 };

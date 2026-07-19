@@ -1,4 +1,4 @@
-const { Users, Likes, Matches } = require("../models");
+const { Users, Likes, Matches, BlockedUsers } = require("../models");
 const { Op } = require("sequelize");
 
 // Like a user
@@ -25,6 +25,24 @@ exports.likeUser = async (req, res) => {
         message: "User not found",
         data: null,
         error: "The user you are trying to like does not exist",
+      });
+    }
+
+    const blocked = await BlockedUsers.findOne({
+      where: {
+        [Op.or]: [
+          { blockerId: userId, blockedUserId: likedUserId },
+          { blockerId: likedUserId, blockedUserId: userId },
+        ],
+      },
+    });
+
+    if (blocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Action not allowed",
+        data: null,
+        error: "One of the users has blocked the other",
       });
     }
 
@@ -297,12 +315,27 @@ exports.discoverUsers = async (req, res) => {
       attributes: ["userId", "matchedUserId"],
     });
 
+    const blockedUsers = await BlockedUsers.findAll({
+      where: {
+        [Op.or]: [
+          { blockerId: userId },
+          { blockedUserId: userId },
+        ],
+      },
+      attributes: ["blockerId", "blockedUserId"],
+    });
+
+    const blockedIds = blockedUsers.flatMap((block) =>
+      block.blockerId === userId ? [block.blockedUserId] : [block.blockerId]
+    );
+
     const excludeIds = [
       userId,
       ...likedUsers.map((l) => l.likedUserId),
       ...matchedUsers.flatMap((m) =>
         m.userId === userId ? m.matchedUserId : m.userId
       ),
+      ...blockedIds,
     ];
 
     // Get users to discover

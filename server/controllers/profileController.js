@@ -1,4 +1,4 @@
-const { Users } = require("../models");
+const { Users, BlockedUsers } = require("../models");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
 const sharp = require("sharp");
@@ -14,10 +14,27 @@ const { Op } = require("sequelize");
 
 const getProfile = async (req, res) => {
   try {
+        const blockedUsers = await BlockedUsers.findAll({
+      where: {
+        [Op.or]: [
+          { blockerId: req.user.id },
+          { blockedUserId: req.user.id },
+        ],
+      },
+      attributes: ["blockerId", "blockedUserId"],
+    });
+
+    const excludeIds = [
+      req.user.id,
+      ...blockedUsers.flatMap((block) =>
+        block.blockerId === req.user.id ? [block.blockedUserId] : [block.blockerId]
+      ),
+    ];
+
     const users = await Users.findAll({
       where: {
         id: {
-          [Op.ne]: req.user.id,
+          [Op.notIn]: excludeIds,
         },
       },
       attributes: {
@@ -46,6 +63,19 @@ const getUserProfile = async (req, res) => {
     const { userId } = req.params;
     if (!userId) {
       return res.status(400).json({ success: false, message: "User ID is required", data: null });
+    }
+
+    const blocked = await BlockedUsers.findOne({
+      where: {
+        [Op.or]: [
+          { blockerId: req.user.id, blockedUserId: userId },
+          { blockerId: userId, blockedUserId: req.user.id },
+        ],
+      },
+    });
+
+    if (blocked) {
+      return res.status(404).json({ success: false, message: "User not found", data: null });
     }
 
     const user = await Users.findByPk(userId, {
