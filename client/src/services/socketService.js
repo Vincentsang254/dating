@@ -93,6 +93,24 @@ class SocketService {
     }
   }
 
+  emitCallOffer(data) {
+    if (this.socket && this.connected) {
+      this.socket.emit("call_offer", data);
+    }
+  }
+
+  emitCallAnswer(data) {
+    if (this.socket && this.connected) {
+      this.socket.emit("call_answer", data);
+    }
+  }
+
+  emitCallIceCandidate(data) {
+    if (this.socket && this.connected) {
+      this.socket.emit("call_ice_candidate", data);
+    }
+  }
+
   onMessageReceive(callback) {
     if (this.socket) {
       this.socket.on("message_receive", callback);
@@ -138,6 +156,24 @@ class SocketService {
   onCallEnded(callback) {
     if (this.socket) {
       this.socket.on("call_ended", callback);
+    }
+  }
+
+  onCallOffer(callback) {
+    if (this.socket) {
+      this.socket.on("call_offer", callback);
+    }
+  }
+
+  onCallAnswer(callback) {
+    if (this.socket) {
+      this.socket.on("call_answer", callback);
+    }
+  }
+
+  onCallIceCandidate(callback) {
+    if (this.socket) {
+      this.socket.on("call_ice_candidate", callback);
     }
   }
 

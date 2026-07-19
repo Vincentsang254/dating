@@ -77,6 +77,10 @@ db.sequelize.sync().then(() => {
   // Socket.IO connection handling
   const onlineUsers = new Map(); // Map of userId -> socketId
 
+  const broadcastUserStatus = (userId, status, lastSeenAt = null) => {
+    io.emit("user_status", { userId, status, lastSeenAt });
+  };
+
   io.on("connection", (socket) => {
     console.log("New user connected:", socket.id);
 
@@ -103,7 +107,7 @@ db.sequelize.sync().then(() => {
         socket.userId = user.id;
         onlineUsers.set(user.id, socket.id);
         // Broadcast user online status to all connected users
-        io.emit("user_status", { userId: user.id, status: "online" });
+        broadcastUserStatus(user.id, "online", null);
       } catch (err) {
         socket.emit("unauthorized", { message: "Invalid token" });
         socket.disconnect(true);
@@ -115,7 +119,7 @@ db.sequelize.sync().then(() => {
     socket.on("user_online", (userId) => {
       onlineUsers.set(userId, socket.id);
       socket.userId = userId;
-      io.emit("user_status", { userId, status: "online" });
+      broadcastUserStatus(userId, "online", null);
     });
 
     // Send message event
@@ -204,6 +208,43 @@ db.sequelize.sync().then(() => {
       }
     });
 
+    socket.on("call_offer", (data) => {
+      const { recipientId, callId, sdp, callType } = data;
+      const recipientSocketId = onlineUsers.get(recipientId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit("call_offer", {
+          senderId: socket.userId,
+          callId,
+          sdp,
+          callType,
+        });
+      }
+    });
+
+    socket.on("call_answer", (data) => {
+      const { recipientId, callId, sdp } = data;
+      const recipientSocketId = onlineUsers.get(recipientId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit("call_answer", {
+          senderId: socket.userId,
+          callId,
+          sdp,
+        });
+      }
+    });
+
+    socket.on("call_ice_candidate", (data) => {
+      const { recipientId, callId, candidate } = data;
+      const recipientSocketId = onlineUsers.get(recipientId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit("call_ice_candidate", {
+          senderId: socket.userId,
+          callId,
+          candidate,
+        });
+      }
+    });
+
     // Call acceptance
     socket.on("call_accept", (data) => {
       const { senderId, callId } = data;
@@ -244,7 +285,7 @@ db.sequelize.sync().then(() => {
     socket.on("disconnect", () => {
       if (socket.userId) {
         onlineUsers.delete(socket.userId);
-        io.emit("user_status", { userId: socket.userId, status: "offline" });
+        broadcastUserStatus(socket.userId, "offline", Date.now());
       }
       console.log("User disconnected:", socket.id);
     });

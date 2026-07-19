@@ -14,6 +14,7 @@ import {
   setUserFeatures,
   addTypingUser,
   removeTypingUser,
+  updateOnlineUsers,
 } from "@/redux/slices/messagingSlice";
 import { Send, ArrowLeft, AlertCircle, Phone, Video, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,10 +35,12 @@ const ChatPage = () => {
     userFeatures,
     incomingCall,
     typingUsers,
+    onlineUsers,
   } = useSelector((state) => state.messaging);
 
   const [messageText, setMessageText] = useState("");
   const [voiceRecording, setVoiceRecording] = useState(false);
+  const [presenceInfo, setPresenceInfo] = useState({ status: "offline", lastSeenAt: null });
   const messagesEndRef = useRef(null);
   const mediaRecorder = useRef(null);
 
@@ -73,6 +76,16 @@ const ChatPage = () => {
     // Listen for incoming calls
     socketService.onCallIncoming((data) => {
       dispatch(setIncomingCall(data));
+    });
+
+    socketService.onUserStatus((data) => {
+      dispatch(updateOnlineUsers(data));
+      if (Number(data.userId) === Number(otherUser?.id)) {
+        setPresenceInfo({
+          status: data.status,
+          lastSeenAt: data.lastSeenAt || null,
+        });
+      }
     });
 
     // Listen for typing indicators
@@ -222,6 +235,19 @@ const ChatPage = () => {
 
   const otherUser = getOtherUser();
 
+  useEffect(() => {
+    if (!otherUser?.id) {
+      setPresenceInfo({ status: "offline", lastSeenAt: null });
+      return;
+    }
+
+    const isOnline = onlineUsers.includes(Number(otherUser.id));
+    setPresenceInfo({
+      status: isOnline ? "online" : "offline",
+      lastSeenAt: isOnline ? null : presenceInfo.lastSeenAt,
+    });
+  }, [otherUser?.id, onlineUsers]);
+
   if (messagesLoading) {
     return (
       <div className="h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -316,7 +342,13 @@ const ChatPage = () => {
               <div>
                 <h2 className="font-semibold text-gray-900">{otherUser.name}</h2>
                 <p className="text-xs text-gray-500">
-                  {typingUsers.length > 0 ? "typing..." : "Online"}
+                  {typingUsers.length > 0
+                    ? "typing..."
+                    : presenceInfo.status === "online"
+                      ? "Online"
+                      : presenceInfo.lastSeenAt
+                        ? `Last seen at ${new Date(presenceInfo.lastSeenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                        : "Offline"}
                 </p>
               </div>
             </div>
